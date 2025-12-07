@@ -78,37 +78,14 @@ jobs:
             echo 'src-git qmodem https://github.com/FUjr/QModem.git;main' >> feeds.conf.default
           fi
 
-      - name: Setup Node.js for Modem WebUI
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Build Modem WebUI
+      - name: Download Modem WebUI
         run: |
-          # 克隆 Modem WebUI 项目
+          # 克隆 Modem WebUI 项目（web 目录已经是构建好的静态文件）
           git clone https://github.com/snowflakexuehui/Modem_Webui.git modem_webui_src
-          cd modem_webui_src/web
           
-          # 安装 pnpm
-          npm install -g pnpm
-          
-          # 安装依赖并构建
-          pnpm install
-          pnpm build
-          
-          # 创建一个特殊标记的 config.json，后续会被路由器上的脚本替换为实际 LAN IP
-          # 这里使用占位符 __LAN_IP__，便于后续替换
-          cat > dist/config.json << 'EOF'
-          {
-            "status": "true",
-            "at": {
-              "host": "__LAN_IP__",
-              "port": 8765
-            }
-          }
-          EOF
-          
-          cd ../..
+          # 检查目录结构
+          echo "Modem WebUI 目录内容："
+          ls -la modem_webui_src/web/
 
       - name: Create Modem WebUI OpenWrt package
         run: |
@@ -117,8 +94,8 @@ jobs:
           mkdir -p $SOURCE_DIR/package/modem-webui/files/etc/init.d
           mkdir -p $SOURCE_DIR/package/modem-webui/files/etc/uci-defaults
           
-          # 复制构建好的前端文件
-          cp -r modem_webui_src/web/dist/* $SOURCE_DIR/package/modem-webui/files/www/modem-webui/
+          # 复制已构建好的前端静态文件（web 目录本身就是 dist 输出）
+          cp -r modem_webui_src/web/* $SOURCE_DIR/package/modem-webui/files/www/modem-webui/
           
           # 创建一个 JavaScript 文件来动态获取当前 host
           # 这样无论通过 IP 还是 immortalwrt.lan 访问都能正常工作
