@@ -101,6 +101,25 @@ jobs:
           # 添加 QModem feed & 更新
           grep -q "qmodem" feeds.conf.default || echo 'src-git qmodem https://github.com/FUjr/QModem.git;main' >> feeds.conf.default
           ./scripts/feeds update -a && ./scripts/feeds install -a -f
+          
+          # ======== 修复依赖 WARNING ========
+          echo "修复依赖警告..."
+          
+          # 1. 移除不需要的有问题的包
+          rm -rf package/feeds/packages/exim 2>/dev/null || true
+          rm -rf package/feeds/packages/onionshare-cli 2>/dev/null || true
+          rm -rf package/feeds/packages/python-zope-event 2>/dev/null || true
+          rm -rf package/feeds/packages/python-zope-interface 2>/dev/null || true
+          
+          # 2. 修复 kmod-mhi-wwan 依赖 - 修改 qmodem Makefile 移除该依赖
+          # qmodem 包默认使用 vendor 驱动 (pcie_mhi)，不需要 generic mhi-wwan
+          QMODEM_MK="package/feeds/qmodem/qmodem/Makefile"
+          if [ -f "$QMODEM_MK" ]; then
+            # 将 kmod-mhi-wwan 依赖改为条件依赖或移除
+            sed -i 's/+kmod-mhi-wwan/+PACKAGE_luci-app-qmodem_GENERIC_MHI_PCIe_DRIVER:kmod-mhi-wwan/g' "$QMODEM_MK" || true
+          fi
+          
+          echo "依赖修复完成"
 
       - name: Create Modem WebUI package
         run: |
