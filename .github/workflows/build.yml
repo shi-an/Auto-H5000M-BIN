@@ -80,23 +80,30 @@ jobs:
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           key: ${{ env.CONFIG_FILE }}
-          max-size: 5G
+          max-size: 8G
+          save: true
 
-      - name: Restore cache
+      - name: Restore build cache
         uses: actions/cache@v4
         with:
           path: |
             ${{ env.SOURCE_DIR }}/dl
             ${{ env.SOURCE_DIR }}/staging_dir/host
             ${{ env.SOURCE_DIR }}/staging_dir/toolchain-*
-          key: ${{ runner.os }}-build-${{ env.CONFIG_FILE }}-${{ github.run_id }}
-          restore-keys: ${{ runner.os }}-build-${{ env.CONFIG_FILE }}-
+            ${{ env.SOURCE_DIR }}/staging_dir/target-*
+            ${{ env.SOURCE_DIR }}/build_dir/host
+            ${{ env.SOURCE_DIR }}/build_dir/toolchain-*
+          key: ${{ runner.os }}-build-${{ env.CONFIG_FILE }}-${{ hashFiles('**/feeds.conf.default') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.CONFIG_FILE }}-
 
       - name: Clone source & setup feeds
         run: |
-          # ccache 优化
+          # ccache 优化 - 更激进的配置
           ccache --set-config=compression=true --set-config=compression_level=6
-          ccache --set-config=sloppiness=file_macro,time_macros,include_file_mtime,include_file_ctime
+          ccache --set-config=sloppiness=file_macro,time_macros,include_file_mtime,include_file_ctime,pch_defines,locale
+          ccache --set-config=max_size=8G
+          ccache --set-config=depend_mode=true
           
           # 克隆或更新源码
           if [ -d "$SOURCE_DIR/.git" ]; then
@@ -327,6 +334,10 @@ jobs:
           
           # ======== 编译优化 ========
           CONFIG_CCACHE=y
+          CONFIG_DEVEL=y
+          CONFIG_BUILD_LOG=y
+          CONFIG_KERNEL_BUILD_USER="builder"
+          CONFIG_KERNEL_BUILD_DOMAIN="github.actions"
           EOF
           
           # 确保取消勾选的包被正确处理
@@ -348,15 +359,40 @@ jobs:
           THREADS=$(($(nproc) + 1))
           export PATH="/usr/lib/ccache:$PATH"
           
-          # 下载（带重试）
-          for i in 1 2 3; do make download -j8 && break; find dl -size -1024c -delete 2>/dev/null; sleep 3; done
+          # 预热 ccache（如果之前有缓存）
+          echo "📊 ccache 缓存状态:"
+          ccache -s | head -20 || true
           
-          # 编译
+          # 下载（带重试，增加并发）
+          for i in 1 2 3; do make download -j16 && break; find dl -size -1024c -delete 2>/dev/null; sleep 3; done
+          
+          # ======== 增量编译优化 ========
+          # 如果 toolchain 已缓存，跳过 toolchain 编译
+          if [ -d "staging_dir/toolchain-aarch64_cortex-a53_gcc-13.3.0_musl" ]; then
+            echo "✅ Toolchain 缓存命中，跳过 toolchain 编译"
+            touch staging_dir/toolchain-*/stamp/.toolchain_*
+          fi
+          
+          # 编译（使用更多线程）
           echo "🔨 开始编译 (${THREADS} 线程)..."
-          make -j$THREADS BUILD_LOG=1 || make -j1 V=s
+          make -j$THREADS BUILD_LOG=1 IGNORE_ERRORS=m || make -j1 V=s
           
-          # ccache 统计
-          echo "📊 ccache:" && ccache -s | grep -E "(hit rate|Hits|Misses)" || true
+          # ccache 最终统计
+          echo "📊 ccache 最终统计:"
+          ccache -s | grep -E "(hit rate|Hits|Misses|Cached)" || true
+
+      - name: Save build cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: |
+            ${{ env.SOURCE_DIR }}/dl
+            ${{ env.SOURCE_DIR }}/staging_dir/host
+            ${{ env.SOURCE_DIR }}/staging_dir/toolchain-*
+            ${{ env.SOURCE_DIR }}/staging_dir/target-*
+            ${{ env.SOURCE_DIR }}/build_dir/host
+            ${{ env.SOURCE_DIR }}/build_dir/toolchain-*
+          key: ${{ runner.os }}-build-${{ env.CONFIG_FILE }}-${{ hashFiles('**/feeds.conf.default') }}-${{ github.run_id }}
 
       - name: Prepare & Upload artifacts
         run: |
