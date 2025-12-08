@@ -198,73 +198,6 @@ jobs:
           
           echo "依赖修复完成"
 
-      - name: Create Modem WebUI package
-        run: |
-          git clone --depth=1 https://github.com/snowflakexuehui/Modem_Webui.git modem_webui_src
-          PKG=$SOURCE_DIR/package/modem-webui
-          mkdir -p $PKG/files/{www/modem-webui,etc/uci-defaults,etc/hotplug.d/iface}
-          
-          # 复制静态文件 & 动态配置
-          cp -r modem_webui_src/web/* $PKG/files/www/modem-webui/
-          echo '(function(){window.MODEM_WEBUI_CONFIG={status:"true",at:{host:window.location.hostname,port:8765}}})();' > $PKG/files/www/modem-webui/dynamic-config.js
-          [ -f "$PKG/files/www/modem-webui/index.html" ] && sed -i 's|<head>|<head><script src="dynamic-config.js"></script>|' $PKG/files/www/modem-webui/index.html
-          
-          # UCI 默认配置
-          cat > $PKG/files/etc/uci-defaults/99-modem-webui << 'EOF'
-          #!/bin/sh
-          cat > /usr/bin/update-modem-webui-config << 'INNER'
-          #!/bin/sh
-          LAN_IP=$(uci get network.lan.ipaddr 2>/dev/null | cut -d'/' -f1)
-          echo "{\"status\":\"true\",\"at\":{\"host\":\"\",\"port\":8765},\"_lan_ip\":\"${LAN_IP:-192.168.1.1}\"}" > /www/modem-webui/config.json
-          INNER
-          chmod +x /usr/bin/update-modem-webui-config && /usr/bin/update-modem-webui-config
-          EOF
-          chmod +x $PKG/files/etc/uci-defaults/99-modem-webui
-          
-          # Hotplug
-          echo '#!/bin/sh' > $PKG/files/etc/hotplug.d/iface/99-modem-webui
-          echo '[ "$ACTION" = "ifup" ] && [ "$INTERFACE" = "lan" ] && /usr/bin/update-modem-webui-config' >> $PKG/files/etc/hotplug.d/iface/99-modem-webui
-          chmod +x $PKG/files/etc/hotplug.d/iface/99-modem-webui
-          
-          # Makefile
-          cat > $PKG/Makefile << 'EOF'
-          include $(TOPDIR)/rules.mk
-          PKG_NAME:=modem-webui
-          PKG_VERSION:=1.0.0
-          PKG_RELEASE:=1
-          PKG_LICENSE:=MIT
-          PKG_MAINTAINER:=snowflakexuehui
-
-          include $(INCLUDE_DIR)/package.mk
-
-          define Package/modem-webui
-            SECTION:=net
-            CATEGORY:=Network
-            TITLE:=Modem Manager WebUI (static)
-            DEPENDS:=+uhttpd +ubus-at-daemon
-            PKGARCH:=all
-          endef
-
-          define Package/modem-webui/description
-            Web-based modem management interface for 5G/LTE modems.
-            Provides dashboard, network config, SMS and AT debug over WebSocket.
-          endef
-
-          define Build/Compile
-          endef
-
-          define Package/modem-webui/install
-          	$(INSTALL_DIR) $(1)/www/modem-webui
-          	$(INSTALL_DIR) $(1)/etc/uci-defaults
-          	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
-          	$(CP) ./files/www/modem-webui/* $(1)/www/modem-webui/
-          	$(INSTALL_BIN) ./files/etc/uci-defaults/99-modem-webui $(1)/etc/uci-defaults/
-          	$(INSTALL_BIN) ./files/etc/hotplug.d/iface/99-modem-webui $(1)/etc/hotplug.d/iface/
-          endef
-
-          $(eval $(call BuildPackage,modem-webui))
-          EOF
-          rm -rf modem_webui_src
 
       - name: Configure build
         run: |
@@ -340,8 +273,8 @@ jobs:
           # CONFIG_PACKAGE_rclone-ng is not set
           # CONFIG_PACKAGE_rclone-webui-react is not set
           
-          # ======== Modem WebUI ========
-          CONFIG_PACKAGE_modem-webui=y
+          # ======== Modem WebUI ======== (已禁用)
+          # CONFIG_PACKAGE_modem-webui is not set
           
           # ======== 编译优化 ========
           CONFIG_CCACHE=y
@@ -358,16 +291,11 @@ jobs:
           
           make defconfig
 
-      - name: Verify modem-webui config
+      - name: Verify build config
         run: |
           cd $SOURCE_DIR
-          echo "检查 modem-webui 配置..."
-          grep CONFIG_PACKAGE_modem-webui .config || (echo "modem-webui 未配置，终止编译" && exit 1)
-          echo "✅ modem-webui 已配置"
-          
-          # 显示关键包配置
           echo "📦 关键包配置状态:"
-          grep -E "CONFIG_PACKAGE_(qmodem|luci-app-qmodem|modem-webui|adguardhome|homeproxy)=" .config || true
+          grep -E "CONFIG_PACKAGE_(qmodem|luci-app-qmodem|adguardhome|homeproxy)=" .config || true
 
       - name: Download & Compile
         run: |
