@@ -106,6 +106,12 @@ jobs:
           grep -q "qmodem" feeds.conf.default || echo 'src-git qmodem https://github.com/FUjr/QModem.git;main' >> feeds.conf.default
           ./scripts/feeds update -a && ./scripts/feeds install -a -f
           
+          # ======== 克隆额外的软件包 ========
+          echo "克隆额外软件包..."
+          
+          # 克隆 luci-app-adguardhome
+          git clone --depth=1 https://github.com/rufengsuixing/luci-app-adguardhome.git package/luci-app-adguardhome
+          
           # ======== 修复依赖 WARNING ========
           echo "修复依赖警告..."
           
@@ -239,6 +245,10 @@ jobs:
           CONFIG_PACKAGE_adguardhome=y
           CONFIG_PACKAGE_luci-app-ramfree=y
           CONFIG_PACKAGE_luci-app-homeproxy=y
+          
+          # ======== LuCI 主题 ========
+          CONFIG_PACKAGE_luci-theme-argon=y
+          CONFIG_PACKAGE_luci-app-argon-config=y
           
           # ======== MTK 硬件加速 ========
           CONFIG_PACKAGE_luci-app-turboacc-mtk=y
