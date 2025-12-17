@@ -1,0 +1,3 @@
+# Custom feeds for Auto-H5000M-BIN
+src-git qmodem https://github.com/FUjr/QModem.git;main
+src-git mihomo https://github.com/morytyann/OpenWrt-mihomo.git;main

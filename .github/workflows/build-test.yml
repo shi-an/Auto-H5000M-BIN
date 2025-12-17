@@ -1,0 +1,154 @@
+name: Build ImmortalWrt H5000M
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-24.10
+  REPO_BRANCH: mt798x-mt799x-6.6-mtwifi
+  CONFIG_FILE: mt7987_mt7992.config
+  TZ: Asia/Shanghai
+  SOURCE_DIR: immortalwrt
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.ccache
+          key: ${{ runner.os }}-ccache-${{ env.CONFIG_FILE }}-${{ hashFiles('**/feeds.conf.default') }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-${{ env.CONFIG_FILE }}-
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ env.CONFIG_FILE }}
+          max-size: 8G
+          save: true
+
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.SOURCE_DIR }}/dl
+            ${{ env.SOURCE_DIR }}/staging_dir/host
+            ${{ env.SOURCE_DIR }}/staging_dir/toolchain-*
+            ${{ env.SOURCE_DIR }}/staging_dir/target-*
+            ${{ env.SOURCE_DIR }}/build_dir/host
+            ${{ env.SOURCE_DIR }}/build_dir/toolchain-*
+          key: ${{ runner.os }}-build-${{ env.CONFIG_FILE }}-${{ hashFiles('**/feeds.conf.default') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.CONFIG_FILE }}-
+
+      - name: Clone source & setup feeds
+        run: |
+          ccache --set-config=compression=true --set-config=compression_level=6
+          ccache --set-config=sloppiness=file_macro,time_macros,include_file_mtime,include_file_ctime,pch_defines,locale
+          ccache --set-config=max_size=8G
+          ccache --set-config=depend_mode=true
+
+          if [ -d "$SOURCE_DIR/.git" ]; then
+            cd $SOURCE_DIR
+            git fetch origin $REPO_BRANCH
+            git reset --hard origin/$REPO_BRANCH
+            git clean -fd
+          else
+            rm -rf $SOURCE_DIR
+            git clone -b $REPO_BRANCH --single-branch --depth=1 $REPO_URL $SOURCE_DIR
+            cd $SOURCE_DIR
+          fi
+
+          # Use repository-level feeds.conf.default if present
+          if [ -f "$GITHUB_WORKSPACE/feeds.conf.default" ]; then
+            cp "$GITHUB_WORKSPACE/feeds.conf.default" ./feeds.conf.default
+          fi
+
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a -f
+
+          # Clone extra packages if not present
+          [ ! -d "package/luci-app-adguardhome" ] && \
+            git clone --depth=1 https://github.com/rufengsuixing/luci-app-adguardhome.git package/luci-app-adguardhome || true
+
+          # Perform a few repository fixes (kept lightweight)
+          AGH_LUCI_SCRIPT="package/luci-app-adguardhome/root/usr/share/AdGuardHome/links.sh"
+          if [ -f "$AGH_LUCI_SCRIPT" ]; then
+            sed -i 's|mv /usr/bin/AdGuardHome/AdGuardHome|rm -rf /usr/bin/AdGuardHome 2>/dev/null; mkdir -p /usr/bin/AdGuardHome; mv /tmp/AdGuardHomeupdate/AdGuardHome_linux_*/AdGuardHome|g' "$AGH_LUCI_SCRIPT" || true
+          fi
+
+          # Other lightweight fixes from original workflow
+          rm -rf package/feeds/packages/exim 2>/dev/null || true
+          rm -rf package/feeds/packages/onionshare-cli 2>/dev/null || true
+          rm -rf package/feeds/packages/python-zope-event 2>/dev/null || true
+          rm -rf package/feeds/packages/python-zope-interface 2>/dev/null || true
+
+      - name: Configure build
+        run: |
+          cd $SOURCE_DIR
+          cp -f defconfig/$CONFIG_FILE .config
+
+          # Ensure removal of old modem config entries
+          sed -i '/CONFIG_PACKAGE_luci-app-modem\|CONFIG_PACKAGE_luci-app-3ginfo-lite\|CONFIG_PACKAGE_luci-app-sms-tool/d' .config || true
+
+          # Append extra config from repository if present
+          if [ -f "$GITHUB_WORKSPACE/h5000m.extra.config" ]; then
+            cat "$GITHUB_WORKSPACE/h5000m.extra.config" >> .config
+          fi
+
+          sed -i '/CONFIG_PACKAGE_luci-app-wrtbwmon=y/d' .config || true
+          sed -i '/CONFIG_PACKAGE_luci-app-rclone=y/d' .config || true
+          sed -i '/CONFIG_PACKAGE_rclone=y/d' .config || true
+
+          make defconfig || true
+
+      - name: Verify build config
+        run: |
+          cd $SOURCE_DIR
+          echo "📦 关键包配置状态:"
+          grep -E "CONFIG_PACKAGE_(qmodem|luci-app-qmodem|adguardhome|mihomo)=" .config || true
+
+      - name: Download & Compile
+        run: |
+          cd $SOURCE_DIR
+          THREADS=$(($(nproc) + 1))
+          export PATH="/usr/lib/ccache:$PATH"
+          for i in 1 2 3; do make download -j16 && break; find dl -size -1024c -delete 2>/dev/null; sleep 3; done
+          echo "🔨 开始编译 (${THREADS} 线程)..."
+          make -j$THREADS BUILD_LOG=1 IGNORE_ERRORS=m || make -j1 V=s || true
+
+      - name: Prepare & Upload artifacts
+        run: |
+          mkdir -p artifacts
+          find $SOURCE_DIR/bin/targets -type f \( -name "*.bin" -o -name "*.img.gz" \) -exec cp {} artifacts/ \; || true
+          ls -lh artifacts/ || true
+
+      - name: Upload to Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: ImmortalWrt-MT7987-${{ github.run_number }}
+          path: artifacts/
+          retention-days: 30
+
+      - name: Create Pre-release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ github.run_number }}
+          name: ImmortalWrt MT7987/MT7992 #${{ github.run_number }}
+          body: |
+            🔧 自动构建 ImmortalWrt MT7987/MT7992 固件
+            📅 时间: ${{ github.event.repository.updated_at }}
+            🌿 分支: ${{ env.REPO_BRANCH }}
+          prerelease: true
+          files: artifacts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
