@@ -4,6 +4,47 @@ name: Build ImmortalWrt H5000M
 # 触发条件：手动触发
 on:
   workflow_dispatch:
+    inputs:
+      enable_adguardhome:
+        description: '启用 AdGuardHome'
+        required: false
+        default: 'false'
+        type: boolean
+      enable_homeproxy:
+        description: '启用 HomeProxy'
+        required: false
+        default: 'false'
+        type: boolean
+      enable_openclash:
+        description: '启用 OpenClash'
+        required: false
+        default: 'false'
+        type: boolean
+      enable_mihomo:
+        description: '启用 Mihomo'
+        required: false
+        default: 'true'
+        type: boolean
+      enable_upnp:
+        description: '启用 UPnP'
+        required: false
+        default: 'true'
+        type: boolean
+      enable_vlmcsd:
+        description: '启用 VLMCSd'
+        required: false
+        default: 'true'
+        type: boolean
+      enable_smartdns:
+        description: '启用 SmartDNS'
+        required: false
+        default: 'true'
+        type: boolean
+      enable_mosdns:
+        description: '启用 MosDNS'
+        required: false
+        default: 'false'
+        type: boolean
 
 # 权限：允许写入内容（用于创建 release）
 permissions:
@@ -70,8 +111,11 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a -f
 
-          [ ! -d "package/luci-app-adguardhome" ] && \
-            git clone --depth=1 https://github.com/rufengsuixing/luci-app-adguardhome.git package/luci-app-adguardhome || true
+          # 如果启用 AdGuardHome，则克隆包
+          if [ "${{ inputs.enable_adguardhome }}" = "true" ]; then
+            [ ! -d "package/luci-app-adguardhome" ] && \
+              git clone --depth=1 https://github.com/rufengsuixing/luci-app-adguardhome.git package/luci-app-adguardhome || true
+          fi
 
           AGH_LUCI_SCRIPT="package/luci-app-adguardhome/root/usr/share/AdGuardHome/links.sh"
           if [ -f "$AGH_LUCI_SCRIPT" ]; then
@@ -91,12 +135,77 @@ jobs:
             echo "未找到额外配置文件，使用默认 .config"
           fi
 
+          # 根据 inputs 启用可选插件
+          if [ "${{ inputs.enable_adguardhome }}" = "true" ]; then
+            echo "CONFIG_PACKAGE_luci-app-adguardhome=y" >> .config
+            echo "CONFIG_PACKAGE_adguardhome=y" >> .config
+            echo "启用 AdGuardHome"
+          fi
+          if [ "${{ inputs.enable_homeproxy }}" = "true" ]; then
+            echo "CONFIG_PACKAGE_luci-app-homeproxy=y" >> .config
+            echo "启用 HomeProxy"
+          fi
+          if [ "${{ inputs.enable_openclash }}" = "true" ]; then
+            echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
+            echo "CONFIG_PACKAGE_ruby=y" >> .config
+            echo "CONFIG_PACKAGE_ruby-yaml=y" >> .config
+            echo "CONFIG_PACKAGE_libyaml=y" >> .config
+            echo "启用 OpenClash"
+          fi
+          if [ "${{ inputs.enable_mihomo }}" = "true" ]; then
+            echo "CONFIG_PACKAGE_nikki=y" >> .config
+            echo "CONFIG_PACKAGE_luci-app-nikki=y" >> .config
+            echo "CONFIG_PACKAGE_luci-i18n-nikki-zh-cn=y" >> .config
+            echo "CONFIG_PACKAGE_mihomo=y" >> .config
+            echo "CONFIG_PACKAGE_luci-app-mihomo=y" >> .config
+            echo "CONFIG_PACKAGE_luci-i18n-mihomo-zh-cn=y" >> .config
+            echo "启用 Mihomo"
+          fi
+          if [ "${{ inputs.enable_upnp }}" = "true" ]; then
+            echo "CONFIG_PACKAGE_luci-app-upnp=y" >> .config
+            echo "启用 UPnP"
+          fi
+          if [ "${{ inputs.enable_vlmcsd }}" = "true" ]; then
+            echo "CONFIG_PACKAGE_luci-app-vlmcsd=y" >> .config
+            echo "CONFIG_PACKAGE_vlmcsd=y" >> .config
+            echo "启用 VLMCSd"
+          fi
+          if [ "${{ inputs.enable_smartdns }}" = "true" ]; then
+            echo "CONFIG_PACKAGE_smartdns=y" >> .config
+            echo "CONFIG_PACKAGE_luci-app-smartdns=y" >> .config
+            echo "CONFIG_PACKAGE_luci-app-smartdns-zh-cn=y" >> .config
+            echo "启用 SmartDNS"
+          fi
+          if [ "${{ inputs.enable_mosdns }}" = "true" ]; then
+            echo "CONFIG_PACKAGE_mosdns=y" >> .config
+            echo "CONFIG_PACKAGE_luci-app-mosdns=y" >> .config
+            echo "启用 MosDNS"
+          fi
+
           make defconfig || true
       - name: 验证构建配置
         run: |
           cd $SOURCE_DIR
           echo "📦 关键包配置状态:"
-          grep -E "CONFIG_PACKAGE_(qmodem|luci-app-qmodem|adguardhome|mihomo)=" .config || echo "某些包在配置中未找到"
+          grep -E "CONFIG_PACKAGE_(qmodem|luci-app-qmodem)=" .config || echo "QModem 包未找到"
+          if [ "${{ inputs.enable_adguardhome }}" = "true" ]; then
+            grep -E "CONFIG_PACKAGE_(luci-app-adguardhome|adguardhome)=" .config || echo "AdGuardHome 包未找到"
+          fi
+          if [ "${{ inputs.enable_mihomo }}" = "true" ]; then
+            grep -E "CONFIG_PACKAGE_(mihomo|luci-app-mihomo)=" .config || echo "Mihomo 包未找到"
+          fi
+          if [ "${{ inputs.enable_upnp }}" = "true" ]; then
+            grep -E "CONFIG_PACKAGE_luci-app-upnp=" .config || echo "UPnP 包未找到"
+          fi
+          if [ "${{ inputs.enable_vlmcsd }}" = "true" ]; then
+            grep -E "CONFIG_PACKAGE_(luci-app-vlmcsd|vlmcsd)=" .config || echo "VLMCSd 包未找到"
+          fi
+          if [ "${{ inputs.enable_smartdns }}" = "true" ]; then
+            grep -E "CONFIG_PACKAGE_(smartdns|luci-app-smartdns)=" .config || echo "SmartDNS 包未找到"
+          fi
+          if [ "${{ inputs.enable_mosdns }}" = "true" ]; then
+            grep -E "CONFIG_PACKAGE_(mosdns|luci-app-mosdns)=" .config || echo "MosDNS 包未找到"
+          fi
       - name: 下载并编译
         run: |
           cd $SOURCE_DIR
