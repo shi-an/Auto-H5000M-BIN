@@ -51,12 +51,12 @@ on:
         default: 'false'
         type: boolean
       enable_qmodem_next:
-        description: '启用 QModem Next (新版JS前端)'
+        description: '启用 QModem Next (新版JS前端) - 与旧版QModem互斥'
         required: false
         default: 'true'
         type: boolean
       enable_qmodem:
-        description: '启用 QModem (旧版)'
+        description: '启用 QModem (旧版) - 与新版QModem Next互斥'
         required: false
         default: 'false'
         type: boolean
