@@ -1,6 +1,6 @@
 # 🚀 ImmortalWrt H5000M 自动编译
 
-[![Build ImmortalWrt MT798x](https://github.com/existyay/Auto-H5000M-BIN/actions/workflows/build.yml/badge.svg)](https://github.com/existyay/Auto-H5000M-BIN/actions/workflows/build.yml)
+[![Build ImmortalWrt MT798x](https://github.com/existyay/Auto-H5000M-BIN/actions/workflows/build-test.yml/badge.svg)](https://github.com/existyay/Auto-H5000M-BIN/actions/workflows/build-test.yml)
 
 基于 [padavanonly/immortalwrt-mt798x-24.10](https://github.com/padavanonly/immortalwrt-mt798x-24.10) 源码，分支 [`mt798x-mt799x-6.6-mtwifi`](https://github.com/padavanonly/immortalwrt-mt798x-24.10/tree/mt798x-mt799x-6.6-mtwifi)，自动编译 H5000M 路由器固件。
 
