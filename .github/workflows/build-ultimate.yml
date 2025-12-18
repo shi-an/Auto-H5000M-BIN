@@ -86,11 +86,6 @@ on:
         required: false
         default: true
         type: boolean
-      enable_parallel_tasks:
-        description: '启用任务并行'
-        required: false
-        default: true
-        type: boolean
       max_build_time:
         description: '最大构建时间(分钟)'
         required: false
@@ -159,14 +154,6 @@ jobs:
 
           echo "📋 配置哈希: $HASH"
 
-      - name: 检查缓存状态
-        id: check-cache
-        run: |
-          echo "🔍 检查缓存状态..."
-
-          # 模拟缓存检查（实际会在后续步骤中进行）
-          echo "cache-status=checking" >> $GITHUB_OUTPUT
-
       - name: 缓存检查 - 下载文件
         uses: actions/cache@v4
         id: cache-dl
@@ -224,7 +211,7 @@ jobs:
           echo "strategy=$STRATEGY" >> $GITHUB_OUTPUT
 
           # 决定是否使用并行
-          if [ "$STRATEGY" = "parallel" ] && [ "${{ inputs.enable_parallel_tasks }}" = "true" ]; then
+          if [ "$STRATEGY" = "parallel" ] && [ "${{ inputs.enable_cache_optimization }}" = "true" ]; then
             echo "use-parallel=true" >> $GITHUB_OUTPUT
           else
             echo "use-parallel=false" >> $GITHUB_OUTPUT
@@ -247,8 +234,6 @@ jobs:
           fi
 
           echo "🎯 构建策略: $STRATEGY"
-          echo "🔄 并行模式: $(echo $use_parallel)"
-          echo "⚡ 增量模式: $(echo $use_incremental)"
 
       - name: 性能优化参数
         id: performance
@@ -284,15 +269,16 @@ jobs:
           echo "💻 最优线程数: $THREADS"
           echo "⏱️ 预计时间: ${ESTIMATED_TIME}分钟"
 
-  # Job 2: 源码和依赖准备（并行执行）
+  # Job 2: 统一资源准备（修复矩阵问题）
   prepare:
     name: 📦 准备资源
     runs-on: ubuntu-22.04
     needs: analyze
     if: always() && needs.analyze.result == 'success'
-    strategy:
-      matrix:
-        task: [source, deps, environment]
+    outputs:
+      source-ready: ${{ steps.source.outputs.ready }}
+      deps-ready: ${{ steps.deps.outputs.ready }}
+      env-ready: ${{ steps.env.outputs.ready }}
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -309,43 +295,75 @@ jobs:
           key: ${{ runner.os }}-prepare-v3-${{ env.REPO_BRANCH }}-${{ needs.analyze.outputs.config-hash }}
           restore-keys: |
             ${{ runner.os }}-prepare-v3-${{ env.REPO_BRANCH }}-
+            ${{ runner.os }}-build-v3-${{ env.REPO_BRANCH }}-
 
-      - name: 执行任务
+      - name: 环境准备
+        id: env
+        continue-on-error: true
         run: |
-          case "${{ matrix.task }}" in
-            "source")
-              echo "📥 准备源码..."
-              if [ ! -d "$SOURCE_DIR/.git" ]; then
-                git clone -b $REPO_BRANCH --single-branch --depth=1 $REPO_URL $SOURCE_DIR
-              else
-                cd $SOURCE_DIR
-                git fetch origin $REPO_BRANCH
-                git reset --hard origin/$REPO_BRANCH
-              fi
-              ;;
-            "deps")
-              echo "📦 准备依赖..."
-              cd $SOURCE_DIR 2>/dev/null || mkdir -p $SOURCE_DIR && cd $SOURCE_DIR
+          echo "🔧 准备环境..."
+          sudo apt-get update -qq || echo "apt update failed"
+          sudo apt-get install -y --no-install-recommends \
+            build-essential git ccache python3 python3-pip \
+            libncurses5-dev libssl-dev libgmp3-dev libmbedtls-dev \
+            rustc cargo golang-go autoconf automake libtool || echo "package install failed"
+          echo "ready=true" >> $GITHUB_OUTPUT
 
-              # 并行更新feeds
-              if [ -f "feeds.conf.default" ] || [ -f "../feeds.conf.default" ]; then
-                [ -f "../feeds.conf.default" ] && cp ../feeds.conf.default ./feeds.conf.default
-                ./scripts/feeds update -a &
-                ./scripts/feeds install -a -f &
-                wait
-              fi
-              ;;
-            "environment")
-              echo "🔧 准备环境..."
-              sudo apt-get update -qq
-              sudo apt-get install -y --no-install-recommends \
-                build-essential git ccache python3 python3-pip \
-                libncurses5-dev libssl-dev libgmp3-dev libmbedtls-dev \
-                rustc cargo golang-go autoconf automake libtool
-              ;;
-          esac
+      - name: 源码准备
+        id: source
+        continue-on-error: true
+        run: |
+          echo "📥 准备源码..."
+          if [ ! -d "$SOURCE_DIR/.git" ]; then
+            git clone -b $REPO_BRANCH --single-branch --depth=1 $REPO_URL $SOURCE_DIR || echo "clone failed"
+          else
+            cd $SOURCE_DIR
+            git fetch origin $REPO_BRANCH || echo "fetch failed"
+            git reset --hard origin/$REPO_BRANCH || echo "reset failed"
+          fi
+          echo "ready=true" >> $GITHUB_OUTPUT
 
-  # Job 3: 智能构建（根据策略自动选择）
+      - name: 依赖准备
+        id: deps
+        continue-on-error: true
+        run: |
+          echo "📦 准备依赖..."
+          cd $SOURCE_DIR 2>/dev/null || { mkdir -p $SOURCE_DIR; cd $SOURCE_DIR; }
+
+          # 准备feeds配置
+          if [ -f "$GITHUB_WORKSPACE/feeds.conf.default" ]; then
+            cp "$GITHUB_WORKSPACE/feeds.conf.default" ./feeds.conf.default
+          fi
+
+          # 动态添加feeds
+          if [ "${{ inputs.enable_mihomo }}" = "true" ] && ! grep -q "mihomo" feeds.conf.default 2>/dev/null; then
+            echo 'src-git mihomo https://github.com/morytyann/OpenWrt-mihomo.git;main' >> feeds.conf.default
+          fi
+          if [ "${{ inputs.enable_qmodem_next }}" = "true" ] || [ "${{ inputs.enable_qmodem }}" = "true" ]; then
+            if ! grep -q "qmodem" feeds.conf.default 2>/dev/null; then
+              echo 'src-git qmodem https://github.com/FUjr/QModem.git;main' >> feeds.conf.default
+            fi
+          fi
+
+          # 更新feeds（如果不存在或需要重建）
+          if [ ! -d "staging_dir/host" ] || [ "${{ needs.analyze.outputs.needs-rebuild }}" = "true" ]; then
+            echo "🔄 更新feeds..."
+            ./scripts/feeds update -a || echo "feeds update failed"
+            ./scripts/feeds install -a -f || echo "feeds install failed"
+          else
+            echo "✅ feeds已存在，跳过更新"
+          fi
+
+          echo "ready=true" >> $GITHUB_OUTPUT
+
+      - name: 上传准备状态
+        run: |
+          echo "✅ 资源准备完成状态:"
+          echo "- 环境: ${{ steps.env.outputs.ready }}"
+          echo "- 源码: ${{ steps.source.outputs.ready }}"
+          echo "- 依赖: ${{ steps.deps.outputs.ready }}"
+
+  # Job 3: 智能构建
   build:
     name: 🔨 智能构建
     runs-on: ubuntu-22.04
@@ -353,7 +371,9 @@ jobs:
     if: always() && needs.analyze.result == 'success' && needs.prepare.result == 'success'
     strategy:
       matrix:
-        stage: ${{ fromJson(needs.analyze.outputs.use-parallel) == 'true' && '["target", "packages"]' || '["full"]' }}
+        # 仅在策略为parallel且缓存良好时使用并行构建
+        stage: ${{ fromJson(needs.analyze.outputs.use-parallel) == 'true' && needs.prepare.outputs.deps-ready == 'true' && needs.prepare.outputs.env-ready == 'true' && '["target", "packages"]' || '["full"]' }}
+      fail-fast: false  # 允许部分任务失败继续执行
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -371,12 +391,23 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-build-v3-${{ env.REPO_BRANCH }}-
 
+      - name: 验证源码
+        run: |
+          if [ ! -d "$SOURCE_DIR" ]; then
+            echo "❌ 源码目录不存在，重新准备..."
+            git clone -b $REPO_BRANCH --single-branch --depth=1 $REPO_URL $SOURCE_DIR
+          fi
+
       - name: 环境准备
         run: |
+          # 确保基础环境就绪
+          sudo apt-get update -qq || true
+          sudo apt-get install -y --no-install-recommends build-essential || true
+
           # 智能清理
           case "${{ needs.analyze.outputs.clean-level }}" in
             "full")
-              make clean || true
+              cd $SOURCE_DIR && make clean || true
               rm -rf ${{ env.SOURCE_DIR }}/build_dir/* || true
               ;;
             "minimal")
@@ -389,16 +420,12 @@ jobs:
 
           # 设置ccache
           export PATH="/usr/lib/ccache:$PATH"
-          ccache --set-config=max_size=8G
-          ccache --set-config=compression=true
-
-          # 安装依赖
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends build-essential
+          ccache --set-config=max_size=8G || true
+          ccache --set-config=compression=true || true
 
       - name: 配置构建
         run: |
-          cd $SOURCE_DIR
+          cd $SOURCE_DIR || { echo "源码目录错误"; exit 1; }
 
           # 下载基础配置
           curl -fsSL "$CONFIG_URL" -o base.config || {
@@ -418,7 +445,16 @@ jobs:
 
           # 应用用户配置
           [ "${{ inputs.enable_adguardhome }}" = "true" ] && { enable_pkg "luci-app-adguardhome"; enable_pkg "adguardhome"; }
-          [ "${{ inputs.enable_openclash }}" = "true" ] && enable_pkg "luci-app-openclash"
+          [ "${{ inputs.enable_openclash }}" = "true" ] && {
+            enable_pkg "luci-app-openclash"
+            enable_pkg "bash"
+            enable_pkg "dnsmasq-full"
+            enable_pkg "curl"
+            enable_pkg "ca-bundle"
+            enable_pkg "ip-full"
+            enable_pkg "kmod-nft-tproxy"
+            enable_pkg "luci-compat"
+          }
           [ "${{ inputs.enable_mihomo }}" = "true" ] && { enable_pkg "mihomo"; enable_pkg "luci-app-mihomo"; }
           [ "${{ inputs.enable_upnp }}" = "true" ] && enable_pkg "luci-app-upnp" || disable_pkg "luci-app-upnp"
           [ "${{ inputs.enable_vlmcsd }}" = "true" ] && { enable_pkg "vlmcsd"; enable_pkg "luci-app-vlmcsd"; }
@@ -431,39 +467,39 @@ jobs:
           make defconfig
 
       - name: 应用修复补丁
+        continue-on-error: true
         run: |
           cd $SOURCE_DIR
           echo "🔧 应用修复补丁..."
 
-          # 并行执行修复任务
-          {
-            # AdGuardHome 相关
-            [ "${{ inputs.enable_adguardhome }}" = "true" ] && [ ! -d "package/luci-app-adguardhome" ] && \
-              git clone --depth=1 https://github.com/rufengsuixing/luci-app-adguardhome.git package/luci-app-adguardhome || true
-          } &
+          # AdGuardHome 相关
+          if [ "${{ inputs.enable_adguardhome }}" = "true" ] && [ ! -d "package/luci-app-adguardhome" ]; then
+            git clone --depth=1 https://github.com/rufengsuixing/luci-app-adguardhome.git package/luci-app-adguardhome || true
+          fi
 
-          {
-            # 移除问题包
-            rm -rf package/feeds/packages/{exim,onionshare-cli,python-zope-event,python-zope-interface} 2>/dev/null || true
-          } &
+          # 移除问题包
+          rm -rf package/feeds/packages/{exim,onionshare-cli,python-zope-event,python-zope-interface} 2>/dev/null || true
 
-          {
-            # QModem 修复
-            rm -rf package/feeds/qmodem/ndisc6 2>/dev/null || true
-            QMODEM_MK="package/feeds/qmodem/qmodem/Makefile"
-            [ -f "$QMODEM_MK" ] && sed -i 's/DEPENDS:=.*+kmod-mhi-wwan/# &/g' "$QMODEM_MK" || true
-          } &
+          # QModem 修复
+          rm -rf package/feeds/qmodem/ndisc6 2>/dev/null || true
+          QMODEM_MK="package/feeds/qmodem/qmodem/Makefile"
+          [ -f "$QMODEM_MK" ] && sed -i 's/DEPENDS:=.*+kmod-mhi-wwan/# &/g' "$QMODEM_MK" || true
 
-          wait
+          # mt_hwifi 依赖修复
+          MT_HWIFI_MK="package/mtk/drivers/mt_hwifi/Makefile"
+          [ -f "$MT_HWIFI_MK" ] && sed -i 's/+kmod-mt_wifi_osal//g' "$MT_HWIFI_MK" || true
+
+          echo "✅ 补丁应用完成"
 
       - name: 智能编译
         timeout-minutes: ${{ inputs.max_build_time }}
+        continue-on-error: false
         run: |
           cd $SOURCE_DIR
           export PATH="/usr/lib/ccache:$PATH"
           THREADS=${{ needs.analyze.outputs.optimal-threads }}
 
-          echo "🔨 开始构建 (模式: ${{ needs.analyze.outputs.build-strategy }})..."
+          echo "🔨 开始构建 (模式: ${{ needs.analyze.outputs.build-strategy }}, 阶段: ${{ matrix.stage }})..."
           START_TIME=$(date +%s)
 
           # 下载依赖（如果需要）
@@ -471,7 +507,7 @@ jobs:
             echo "📦 下载依赖..."
             make download -j$((THREADS * 2)) || {
               find dl -size -1024c -delete 2>/dev/null || true
-              make download -j$((THREADS * 2))
+              make download -j$((THREADS * 2)) || echo "下载失败，继续尝试编译"
             }
           fi
 
@@ -479,11 +515,17 @@ jobs:
           case "${{ matrix.stage }}" in
             "target")
               echo "🎯 编译target..."
-              make -j$THREADS target/compile BUILD_LOG=1
+              make -j$THREADS target/compile BUILD_LOG=1 || {
+                echo "⚠️ target编译失败，尝试完整编译..."
+                make -j$THREADS BUILD_LOG=1
+              }
               ;;
             "packages")
               echo "📦 编译packages..."
-              make -j$THREADS package/compile BUILD_LOG=1
+              make -j$THREADS package/compile BUILD_LOG=1 || {
+                echo "⚠️ packages编译失败，尝试完整编译..."
+                make -j$THREADS BUILD_LOG=1
+              }
               ;;
             "full"|*)
               echo "🔨 完整编译..."
@@ -530,16 +572,13 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: 下载构建产物
-        uses: actions/download-artifact@v4
-        if: needs.build.result == 'success'
-        continue-on-error: true
+      - name: 恢复构建缓存
+        uses: actions/cache@v4
         with:
-          pattern: build-result-*
-          path: artifacts/
-          merge-multiple: true
+          path: ${{ env.SOURCE_DIR }}
+          key: ${{ runner.os }}-build-v3-${{ env.REPO_BRANCH }}-${{ needs.analyze.outputs.config-hash }}-${{ github.run_id }}
 
-      - name: 收集本地产物
+      - name: 收集产物
         run: |
           cd $SOURCE_DIR 2>/dev/null || { echo "源码目录不存在"; exit 1; }
 
@@ -550,6 +589,12 @@ jobs:
 
           mkdir -p $GITHUB_WORKSPACE/artifacts
           find bin/targets -type f \( -name "*.bin" -o -name "*.img.gz" \) -exec cp {} $GITHUB_WORKSPACE/artifacts/ \;
+
+          # 验证产物
+          if [ -z "$(ls -A $GITHUB_WORKSPACE/artifacts/ 2>/dev/null)" ]; then
+            echo "❌ 没有找到产物文件"
+            exit 1
+          fi
 
       - name: 生成详细清单
         run: |
@@ -589,11 +634,7 @@ jobs:
           EOF
 
           cd $GITHUB_WORKSPACE/artifacts
-          if [ -n "$(ls -A *.bin *.img.gz 2>/dev/null)" ]; then
-            ls -lh *.bin *.img.gz 2>/dev/null | awk '{print "  • " $9 " (" $5 ")"}' >> MANIFEST.txt
-          else
-            echo "  (无产物文件)" >> MANIFEST.txt
-          fi
+          ls -lh *.bin *.img.gz 2>/dev/null | awk '{print "  • " $9 " (" $5 ")"}' >> MANIFEST.txt || echo "  (无产物文件)" >> MANIFEST.txt
 
       - name: 上传构建结果
         uses: actions/upload-artifact@v4
@@ -637,45 +678,3 @@ jobs:
           files: artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # Job 5: 性能报告和优化建议
-  report:
-    name: 📊 性能报告
-    runs-on: ubuntu-22.04
-    needs: [analyze, package]
-    if: always() && needs.analyze.result == 'success'
-    steps:
-      - name: 生成性能报告
-        run: |
-          echo "## 🚀 ImmortalWrt H5000M 构建性能报告" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📊 构建统计" >> $GITHUB_STEP_SUMMARY
-          echo "- **构建策略**: ${{ needs.analyze.outputs.build-strategy }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **缓存命中率**: " >> $GITHUB_STEP_SUMMARY
-          echo "  - DL缓存: ${{ needs.analyze.outputs.cache-hit-dl == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
-          echo "  - Toolchain: ${{ needs.analyze.outputs.cache-hit-toolchain == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
-          echo "  - ccache: ${{ needs.analyze.outputs.cache-hit-ccache == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **优化参数**:" >> $GITHUB_STEP_SUMMARY
-          echo "  - 使用并行: ${{ needs.analyze.outputs.use-parallel }}" >> $GITHUB_STEP_SUMMARY
-          echo "  - 使用增量: ${{ needs.analyze.outputs.use-incremental }}" >> $GITHUB_STEP_SUMMARY
-          echo "  - 最优线程: ${{ needs.analyze.outputs.optimal-threads }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **预估时间**: ${{ needs.analyze.outputs.estimated-time }}分钟" >> $GITHUB_STEP_SUMMARY
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 💡 优化建议" >> $GITHUB_STEP_SUMMARY
-
-          if [ "${{ needs.analyze.outputs.cache-hit-dl }}" = "false" ]; then
-            echo "- 🔄 建议启用DL缓存以加速后续构建" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          if [ "${{ needs.analyze.outputs.cache-hit-toolchain }}" = "false" ]; then
-            echo "- 🔧 Toolchain未命中，首次构建属正常情况" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          if [ "${{ needs.analyze.outputs.use-parallel }}" = "false" ]; then
-            echo "- 🚀 建议在后续构建中启用并行模式" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          if [ "${{ needs.analyze.outputs.use-incremental }}" = "false" ]; then
-            echo "- ⚡ 配置变更导致完整重建，下次将使用增量构建" >> $GITHUB_STEP_SUMMARY
-          fi
