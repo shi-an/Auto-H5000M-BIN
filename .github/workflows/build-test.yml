@@ -501,7 +501,7 @@ jobs:
           body: |
             🎉 **ImmortalWrt H5000M 固件已构建完成**
 
-            📅 时间: $(date '+%Y-%m-%d %H:%M:%S')
+            📅 时间: ${{ github.event.repository.updated_at }}
             🔗 运行 ID: ${{ github.run_id }}
 
             **⚙️ 启用的功能:**
