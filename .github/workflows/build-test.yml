@@ -144,20 +144,41 @@ jobs:
           path: |
             ${{ env.SOURCE_DIR }}/dl
             ${{ env.SOURCE_DIR }}/staging_dir
+            ${{ env.SOURCE_DIR }}/build_dir
+            ${{ env.SOURCE_DIR }}/tmp
             ~/.ccache
-          key: ${{ runner.os }}-build-${{ env.REPO_BRANCH }}-${{ hashFiles('**/feeds.conf.default', '**/*.config') }}
+          key: ${{ runner.os }}-build-${{ env.REPO_BRANCH }}-${{ hashFiles('feeds.conf.default', 'h5000m.extra.config') }}-${{ hash( inputs.enable_adguardhome + inputs.enable_openclash + inputs.enable_mihomo + inputs.enable_upnp + inputs.enable_vlmcsd + inputs.enable_mosdns + inputs.enable_dockerman + inputs.enable_qmodem_next + inputs.enable_qmodem + inputs.enable_mwan + inputs.enable_homeproxy ) }}
           restore-keys: |
             ${{ runner.os }}-build-${{ env.REPO_BRANCH }}-
 
       - name: 源码和依赖准备
         run: |
-          # 清理旧目录并克隆源码
-          if [ -d "$SOURCE_DIR" ]; then
-            echo "🗑️ 清理旧源码目录..."
-            rm -rf "$SOURCE_DIR"
+          # 检查并准备源码
+          if [ ! -d "$SOURCE_DIR" ]; then
+            echo "📥 克隆源码..."
+            git clone -b $REPO_BRANCH --single-branch --depth=1 $REPO_URL $SOURCE_DIR
+          else
+            echo "🔄 检查源码更新..."
+            cd $SOURCE_DIR
+            CURRENT_BRANCH=$(git branch --show-current)
+            if [ "$CURRENT_BRANCH" != "$REPO_BRANCH" ]; then
+              echo "分支不同，重新克隆..."
+              cd ..
+              rm -rf "$SOURCE_DIR"
+              git clone -b $REPO_BRANCH --single-branch --depth=1 $REPO_URL $SOURCE_DIR
+            else
+              git fetch origin $REPO_BRANCH
+              LOCAL_COMMIT=$(git rev-parse HEAD)
+              REMOTE_COMMIT=$(git rev-parse FETCH_HEAD)
+              if [ "$LOCAL_COMMIT" != "$REMOTE_COMMIT" ]; then
+                echo "有更新，重置到最新..."
+                git reset --hard FETCH_HEAD
+              else
+                echo "源码已是最新"
+              fi
+            fi
+            cd ..
           fi
-          echo "📥 克隆源码..."
-          git clone -b $REPO_BRANCH --single-branch --depth=1 $REPO_URL $SOURCE_DIR
 
           # 设置 feeds
           cd $SOURCE_DIR
@@ -181,8 +202,9 @@ jobs:
           fi
 
           # 更新 feeds
-          ./scripts/feeds update -a
-          ./scripts/feeds install -a -f
+          echo "🔄 更新 feeds..."
+          ./scripts/feeds update -a -j$(nproc)
+          ./scripts/feeds install -a -f -j$(nproc)
 
       - name: 修复依赖和补丁
         run: |
@@ -191,20 +213,27 @@ jobs:
 
           # 下载额外包
           if [ "${{ steps.set-env.outputs.enable_adguardhome }}" = "true" ]; then
-            [ ! -d "package/luci-app-adguardhome" ] && \
+            if [ ! -d "package/luci-app-adguardhome" ]; then
               git clone --depth=1 https://github.com/MIAOBUSI/luci-app-adguardhome.git package/luci-app-adguardhome || true
+            fi
           fi
 
           # MosDNS 安装步骤
           if [ "${{ steps.set-env.outputs.enable_mosdns }}" = "true" ]; then
             # 更新 golang 到 24.x 版本
-            rm -rf feeds/packages/lang/golang
-            git clone https://github.com/sbwml/packages_lang_golang -b 24.x feeds/packages/lang/golang
+            if [ ! -d "feeds/packages/lang/golang" ] || [ ! -f "feeds/packages/lang/golang/Makefile" ]; then
+              rm -rf feeds/packages/lang/golang
+              git clone https://github.com/sbwml/packages_lang_golang -b 24.x feeds/packages/lang/golang
+            fi
             # 移除冲突的 v2ray-geodata 包
             rm -rf feeds/packages/net/v2ray-geodata
             # 克隆 MosDNS 和 v2ray-geodata 包
-            git clone https://github.com/sbwml/luci-app-mosdns -b v5 package/mosdns
-            git clone https://github.com/sbwml/v2ray-geodata package/v2ray-geodata
+            if [ ! -d "package/mosdns" ]; then
+              git clone https://github.com/sbwml/luci-app-mosdns -b v5 package/mosdns
+            fi
+            if [ ! -d "package/v2ray-geodata" ]; then
+              git clone https://github.com/sbwml/v2ray-geodata package/v2ray-geodata
+            fi
           fi
 
           # 修复 AdGuardHome 路径问题
@@ -266,11 +295,13 @@ jobs:
           cat base.config > .config
 
           # 确保禁用冲突的modem包
-          sed -i 's/^CONFIG_PACKAGE_luci-app-modem=y/# CONFIG_PACKAGE_luci-app-modem is not set/' .config
-          sed -i 's/^CONFIG_PACKAGE_modem=y/# CONFIG_PACKAGE_modem is not set/' .config
+          sed -i '/^CONFIG_PACKAGE_luci-app-modem=/d; /^CONFIG_PACKAGE_modem=/d' .config
+          echo "# CONFIG_PACKAGE_luci-app-modem is not set" >> .config
+          echo "# CONFIG_PACKAGE_modem is not set" >> .config
 
           # 应用额外配置
           if [ -f "$GITHUB_WORKSPACE/h5000m.extra.config" ]; then
+            echo "📄 应用额外配置..."
             cat "$GITHUB_WORKSPACE/h5000m.extra.config" >> .config
           fi
 
@@ -379,7 +410,7 @@ jobs:
       - name: 打包源码
         run: |
           echo "📦 打包源码和配置..."
-          tar -czf source.tar.gz $SOURCE_DIR $GITHUB_WORKSPACE/h5000m.extra.config $GITHUB_WORKSPACE/feeds.conf.default 2>/dev/null || true
+          tar --exclude="$SOURCE_DIR/build_dir" --exclude="$SOURCE_DIR/tmp" -czf source.tar.gz $SOURCE_DIR $GITHUB_WORKSPACE/h5000m.extra.config $GITHUB_WORKSPACE/feeds.conf.default 2>/dev/null || true
 
       - name: 上传源码
         uses: actions/upload-artifact@v4
@@ -401,14 +432,15 @@ jobs:
         run: |
           echo "📦 解压源码..."
           tar -xzf source.tar.gz
-          ls -la
+          echo "✅ 源码解压完成"
 
       - name: 深度清理磁盘空间
         run: |
           echo "🧹 执行深度清理以释放磁盘空间..."
           
-          # 删除 Docker 镜像
+          # 删除 Docker 镜像和容器
           docker rmi $(docker images -q) 2>/dev/null || true
+          docker system prune -f 2>/dev/null || true
           
           # 删除不需要的大型组件
           sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android \
@@ -418,7 +450,7 @@ jobs:
             /usr/local/share/boost /usr/share/swift /opt/hostedtoolcache /usr/local/.ghcup \
             /usr/local/graalvm /imagegeneration 2>/dev/null || true
           
-          # 卸载不需要的软件
+          # 卸载不需要的软件包
           sudo apt-get -y purge azure-cli* docker* ghc* zulu* hhvm* llvm* firefox* \
             google* dotnet* aspnetcore* powershell* openjdk* adoptopenjdk* mysql* php* \
             mongodb* moby* snap* 2>/dev/null || true
@@ -428,36 +460,50 @@ jobs:
           sudo apt-get clean
           sudo apt-get autoclean
           
-          # 清理临时文件
-          sudo rm -rf /tmp/* /var/tmp/* 2>/dev/null || true
+          # 清理临时文件和日志
+          sudo rm -rf /tmp/* /var/tmp/* /var/log/* 2>/dev/null || true
           
-          # Docker 清理
-          docker system prune -f 2>/dev/null || true
+          # 清理用户缓存
+          rm -rf ~/.cache/* 2>/dev/null || true
           
           AVAIL_GB=$(df -BG / | tail -1 | awk '{print $4}' | sed 's/G//')
           echo "✅ 清理后可用磁盘空间: ${AVAIL_GB}GB"
+          
+          if [ "$AVAIL_GB" -lt 10 ]; then
+            echo "⚠️ 磁盘空间仍不足，尝试额外清理..."
+            sudo rm -rf /usr/local/share /opt /var/cache/apt/archives/* 2>/dev/null || true
+            AVAIL_GB=$(df -BG / | tail -1 | awk '{print $4}' | sed 's/G//')
+            echo "✅ 额外清理后可用磁盘空间: ${AVAIL_GB}GB"
+          fi
 
       - name: 编译固件
         run: |
           cd $SOURCE_DIR
-          THREADS=$(($(nproc) + 1))
+          THREADS=$(nproc)
           export PATH="/usr/lib/ccache:$PATH"
-
+          
           echo "🔨 开始编译 (${THREADS} 线程)..."
+          echo "📊 CCache 统计 (开始):"
+          ccache -s || true
+          
           START_TIME=$(date +%s)
-
+          
           # 下载依赖
-          if ! make download -j$(($THREADS * 2)); then
-            echo "⚠️ 下载失败，清理重试..."
+          if [ -z "$(ls -A dl 2>/dev/null)" ] || ! make download -j$THREADS; then
+            echo "⚠️ 下载依赖..."
             find dl -size -1024c -delete 2>/dev/null || true
-            make download -j$(($THREADS * 2))
+            make download -j$THREADS
+          else
+            echo "✅ 依赖已存在，跳过下载"
           fi
-
+          
           # 编译
           if make -j$THREADS BUILD_LOG=1 IGNORE_ERRORS=m; then
             END_TIME=$(date +%s)
             DURATION=$((END_TIME - START_TIME))
             echo "✅ 编译成功 (耗时: ${DURATION}s)"
+            echo "📊 CCache 统计 (结束):"
+            ccache -s || true
           else
             echo "⚠️ 并行编译失败，尝试单线程..."
             make -j1 V=s || {
@@ -496,7 +542,7 @@ jobs:
         run: |
           echo "📦 解压产物..."
           tar -xzf artifacts.tar.gz
-          ls -la artifacts/
+          echo "✅ 产物解压完成"
 
       - name: 收集和上传产物
         run: |
@@ -534,8 +580,7 @@ jobs:
           cd artifacts
           ls -lh | grep -v "^total" | awk '{print "  • " $9 " (" $5 ")"}' >> MANIFEST.txt
 
-          echo "✅ 产物收集完成:"
-          ls -lh
+          echo "✅ 产物收集完成"
 
       - name: 上传构建结果
         uses: actions/upload-artifact@v4
@@ -562,7 +607,7 @@ jobs:
             - UPnP: ${{ needs.prepare.outputs.enable_upnp }}
             - VLMCSd: ${{ needs.prepare.outputs.enable_vlmcsd }}
             - MosDNS: ${{ needs.prepare.outputs.enable_mosdns }}
-            - Docker: ${{ needs.prepare.outputs.enable_dockerman }}
+            - DockerMan: ${{ needs.prepare.outputs.enable_dockerman }}
             - MWAN: ${{ needs.prepare.outputs.enable_mwan }}
             - HomeProxy: ${{ needs.prepare.outputs.enable_homeproxy }}
 
