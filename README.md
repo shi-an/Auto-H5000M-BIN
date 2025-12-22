@@ -22,20 +22,20 @@
 
 ---
 
-## 📦 预装插件
+## 📦 可选插件
 
 ### 🌐 网络管理
 
 - **QModem** - 5G/LTE 模组管理（支持 Quectel、Fibocom 等）
 - **Mihomo** - 代理客户端
-- **HomeProxy（可选）** - 现代化多协议代理（可在 Actions 手动编译时启用）
+- **HomeProxy** - 现代化多协议代理
 - **MWAN3** - 多 WAN 负载均衡
 - **UPnP** - 自动端口映射
 
 ### 🛡️ 系统工具
 
 - **AdGuardHome** - 广告过滤 & DNS
-- **Adbyby Plus（可选）** - 广告过滤（可在 Actions 手动编译时启用）
+- **Adbyby Plus** - 广告过滤
 - **Argon 主题** - 美化界面
 - **TurboACC-MTK** - MTK 硬件加速
 - **Vlmcsd** - KMS 激活服务器

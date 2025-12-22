@@ -8,7 +8,7 @@ on:
       enable_adguardhome:
         description: '启用 AdGuardHome'
         required: false
-        default: true
+        default: false
         type: boolean
       enable_openclash:
         description: '启用 OpenClash'
@@ -18,17 +18,17 @@ on:
       enable_mihomo:
         description: '启用 Nikki'
         required: false
-        default: true
+        default: false
         type: boolean
       enable_upnp:
         description: '启用 UPnP'
         required: false
-        default: true
+        default: false
         type: boolean
       enable_vlmcsd:
         description: '启用 VLMCSd'
         required: false
-        default: true
+        default: false
         type: boolean
       enable_mosdns:
         description: '启用 MosDNS'
@@ -43,7 +43,7 @@ on:
       enable_qmodem_next:
         description: '启用 QModem Next (新版)'
         required: false
-        default: true
+        default: false
         type: boolean
       enable_qmodem:
         description: '启用 QModem (旧版)'
@@ -53,7 +53,7 @@ on:
       enable_mwan:
         description: '启用 MWAN (多WAN负载均衡)'
         required: false
-        default: true
+        default: false
         type: boolean
 
       enable_homeproxy:
@@ -98,16 +98,16 @@ jobs:
       - name: 设置环境变量
         id: set-env
         run: |
-          echo "enable_adguardhome=${{ inputs.enable_adguardhome || true }}" >> $GITHUB_OUTPUT
+          echo "enable_adguardhome=${{ inputs.enable_adguardhome || false }}" >> $GITHUB_OUTPUT
           echo "enable_openclash=${{ inputs.enable_openclash || false }}" >> $GITHUB_OUTPUT
-          echo "enable_mihomo=${{ inputs.enable_mihomo || true }}" >> $GITHUB_OUTPUT
-          echo "enable_upnp=${{ inputs.enable_upnp || true }}" >> $GITHUB_OUTPUT
-          echo "enable_vlmcsd=${{ inputs.enable_vlmcsd || true }}" >> $GITHUB_OUTPUT
+          echo "enable_mihomo=${{ inputs.enable_mihomo || false }}" >> $GITHUB_OUTPUT
+          echo "enable_upnp=${{ inputs.enable_upnp || false }}" >> $GITHUB_OUTPUT
+          echo "enable_vlmcsd=${{ inputs.enable_vlmcsd || false }}" >> $GITHUB_OUTPUT
           echo "enable_mosdns=${{ inputs.enable_mosdns || false }}" >> $GITHUB_OUTPUT
           echo "enable_dockerman=${{ inputs.enable_dockerman || false }}" >> $GITHUB_OUTPUT
-          echo "enable_qmodem_next=${{ inputs.enable_qmodem_next || true }}" >> $GITHUB_OUTPUT
+          echo "enable_qmodem_next=${{ inputs.enable_qmodem_next || false }}" >> $GITHUB_OUTPUT
           echo "enable_qmodem=${{ inputs.enable_qmodem || false }}" >> $GITHUB_OUTPUT
-          echo "enable_mwan=${{ inputs.enable_mwan || true }}" >> $GITHUB_OUTPUT
+          echo "enable_mwan=${{ inputs.enable_mwan || false }}" >> $GITHUB_OUTPUT
           echo "enable_homeproxy=${{ inputs.enable_homeproxy || false }}" >> $GITHUB_OUTPUT
           echo "enable_adbyby_plus=${{ inputs.enable_adbyby_plus || false }}" >> $GITHUB_OUTPUT
 
