@@ -92,11 +92,11 @@ jobs:
         id: set-env
         run: |
           echo "enable_adguardhome=${{ inputs.enable_adguardhome || true }}" >> $GITHUB_OUTPUT
-          echo "enable_openclash=${{ inputs.enable_openclash || true }}" >> $GITHUB_OUTPUT
-          echo "enable_mihomo=${{ inputs.enable_mihomo || false }}" >> $GITHUB_OUTPUT
+          echo "enable_openclash=${{ inputs.enable_openclash || false }}" >> $GITHUB_OUTPUT
+          echo "enable_mihomo=${{ inputs.enable_mihomo || true }}" >> $GITHUB_OUTPUT
           echo "enable_upnp=${{ inputs.enable_upnp || true }}" >> $GITHUB_OUTPUT
           echo "enable_vlmcsd=${{ inputs.enable_vlmcsd || true }}" >> $GITHUB_OUTPUT
-          echo "enable_mosdns=${{ inputs.enable_mosdns || true }}" >> $GITHUB_OUTPUT
+          echo "enable_mosdns=${{ inputs.enable_mosdns || false }}" >> $GITHUB_OUTPUT
           echo "enable_dockerman=${{ inputs.enable_dockerman || false }}" >> $GITHUB_OUTPUT
           echo "enable_qmodem_next=${{ inputs.enable_qmodem_next || true }}" >> $GITHUB_OUTPUT
           echo "enable_qmodem=${{ inputs.enable_qmodem || false }}" >> $GITHUB_OUTPUT
