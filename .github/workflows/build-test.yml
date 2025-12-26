@@ -230,7 +230,16 @@ jobs:
         run: |
           cd $SOURCE_DIR
           echo "🔧 应用补丁和修复依赖..."
-
+          
+           # ⭐ 修复 qmi_wwan_f 驱动 Linux 6.6 兼容性
+          QMI_WWAN_F_SOURCE="package/mtk/applications/5g-modem/fibocom_QMI_WWAN/qmi_wwan_f.c"
+          if [ -f "$QMI_WWAN_F_SOURCE" ]; then
+            echo "🔧 修复 qmi_wwan_f 驱动兼容性..."
+            sed -i 's/u64_stats_fetch_begin_irq/u64_stats_fetch_begin/g' "$QMI_WWAN_F_SOURCE"
+            sed -i 's/u64_stats_fetch_retry_irq/u64_stats_fetch_retry/g' "$QMI_WWAN_F_SOURCE"
+            sed -i 's/memcpy (qmap_net->dev_addr, real_dev->dev_addr, ETH_ALEN);/memcpy (qmap_net->dev_addr, (void *)real_dev->dev_addr, ETH_ALEN);/g' "$QMI_WWAN_F_SOURCE"
+            echo "✅ qmi_wwan_f 兼容性修复完成"
+          fi
           # 下载额外包
           if [ "${{ steps.set-env.outputs.enable_adguardhome }}" = "true" ]; then
             [ ! -d "package/luci-app-adguardhome" ] && \
