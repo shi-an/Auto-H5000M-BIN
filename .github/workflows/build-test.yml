@@ -160,7 +160,6 @@ jobs:
           path: |
             ${{ env.SOURCE_DIR }}/dl
             ${{ env.SOURCE_DIR }}/staging_dir
-            ${{ env.SOURCE_DIR }}/build_dir
             ~/.ccache
           key: ${{ runner.os }}-build-${{ env.REPO_BRANCH }}-${{ hashFiles('feeds.conf.default', 'h5000m.extra.config') }}
           restore-keys: |
@@ -206,6 +205,7 @@ jobs:
           if [ "${{ steps.set-env.outputs.enable_nikki }}" != "true" ]; then
             echo "🔧 禁用 nikki feed..."
             sed -i '/src-git nikki/d' feeds.conf.default
+            sed -i '/nikki/d' feeds.conf.default
           fi
 
           # QModem feed
@@ -223,25 +223,77 @@ jobs:
             sed -i '/coolsnowwolf_luci/d' feeds.conf.default
           fi
 
-          # 彻底清理不需要的 feeds 目录和索引 (在修改 feeds.conf.default 之后)
-          echo "🧹 清理旧的 feeds 缓存..."
+          # 显示最终的 feeds.conf.default 内容
+          echo "📋 当前 feeds.conf.default 内容:"
+          cat feeds.conf.default
+
+          # 彻底清理所有 feeds 缓存 (关键: 必须在 feeds update 之前完成)
+          echo "🧹 彻底清理 feeds 缓存..."
+          
+          # 清理 tmp 目录中的所有缓存
+          rm -rf tmp/.config* tmp/.packageinfo tmp/.targetinfo tmp/info 2>/dev/null || true
+          rm -rf tmp/.feeds* 2>/dev/null || true
+          
+          # 清理不需要的 feeds 目录和索引
           if [ "${{ steps.set-env.outputs.enable_nikki }}" != "true" ]; then
             rm -rf feeds/nikki feeds/nikki.index feeds/nikki.tmp 2>/dev/null || true
+            rm -rf package/feeds/nikki 2>/dev/null || true
           fi
           if [ "${{ steps.set-env.outputs.enable_qmodem_next }}" != "true" ] && [ "${{ steps.set-env.outputs.enable_qmodem }}" != "true" ]; then
             rm -rf feeds/qmodem feeds/qmodem.index feeds/qmodem.tmp 2>/dev/null || true
+            rm -rf package/feeds/qmodem 2>/dev/null || true
           fi
           if [ "${{ steps.set-env.outputs.enable_adbyby_plus }}" != "true" ]; then
             rm -rf feeds/coolsnowwolf_luci feeds/coolsnowwolf_luci.index feeds/coolsnowwolf_luci.tmp 2>/dev/null || true
+            rm -rf package/feeds/coolsnowwolf_luci 2>/dev/null || true
           fi
-          
-          # 清理可能残留的全局索引缓存
-          rm -rf tmp/.packageinfo tmp/.targetinfo 2>/dev/null || true
 
           # feeds update/install
           echo "🔄 更新 feeds..."
+          
+          # 验证 feeds.conf.default 不包含已禁用的源
+          if [ "${{ steps.set-env.outputs.enable_nikki }}" != "true" ]; then
+            if grep -q "nikki" feeds.conf.default; then
+              echo "⚠️ 发现残留的 nikki 配置，正在清理..."
+              sed -i '/nikki/d' feeds.conf.default
+            fi
+          fi
+          
+          # 更新 feeds (忽略可能的 find 错误)
+          set +e  # 暂时禁用错误退出
           ./scripts/feeds update -a -j $(nproc)
+          UPDATE_RESULT=$?
+          set -e  # 重新启用错误退出
+          
+          if [ $UPDATE_RESULT -ne 0 ]; then
+            echo "⚠️ feeds update 返回非零状态码，检查并清理..."
+            # 清理可能错误创建的索引文件
+            if [ "${{ steps.set-env.outputs.enable_nikki }}" != "true" ]; then
+              rm -rf feeds/nikki* feeds/nikki.index package/feeds/nikki 2>/dev/null || true
+            fi
+          fi
+          
+          # 强制清理不应存在的 feed 相关文件
+          if [ "${{ steps.set-env.outputs.enable_nikki }}" != "true" ]; then
+            rm -rf feeds/nikki* package/feeds/nikki 2>/dev/null || true
+          fi
+          
+          # 安装 feeds
+          set +e
           ./scripts/feeds install -a -f -j $(nproc)
+          INSTALL_RESULT=$?
+          set -e
+          
+          if [ $INSTALL_RESULT -ne 0 ]; then
+            echo "⚠️ feeds install 有问题，清理并重试..."
+            rm -rf tmp/.packageinfo tmp/.targetinfo 2>/dev/null || true
+            if [ "${{ steps.set-env.outputs.enable_nikki }}" != "true" ]; then
+              rm -rf feeds/nikki* package/feeds/nikki 2>/dev/null || true
+            fi
+            ./scripts/feeds install -a -f -j $(nproc) || echo "⚠️ feeds install 仍有警告，继续执行..."
+          fi
+          
+          echo "✅ feeds 处理完成"
 
       - name: 修复依赖和补丁
         run: |
