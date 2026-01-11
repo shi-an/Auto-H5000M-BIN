@@ -549,8 +549,8 @@ jobs:
           echo "📦 安装编译依赖..."
           sudo apt-get update -qq
           sudo apt-get install -y build-essential git ccache python3 python3-pip \
-            libncurses5-dev libssl-dev libgmp3-dev libmbedtls-dev \
-            autoconf automake libtool patch make gcc g++ gawk gettext unzip file wget
+            libncurses5-dev libssl-dev libgmp3-dev libmbedtls-dev rustc cargo \
+            golang-go autoconf automake libtool patch make gcc g++ gawk gettext unzip file wget
           
           # 设置 ccache
           export PATH="/usr/lib/ccache:$PATH"
