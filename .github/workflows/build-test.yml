@@ -417,8 +417,9 @@ jobs:
           if [ -n "$NETWORK_CONFIGS" ]; then
             for config_file in $NETWORK_CONFIGS; do
               echo "📄 修改网络配置文件: $config_file"
-              sed -i 's/option ipaddr "192.168.6.1"/option ipaddr "192.168.88.1"/g' "$config_file"
-              sed -i "s/option ipaddr '192.168.6.1'/option ipaddr '192.168.88.1'/g" "$config_file"
+              # 安全地修改IP地址，只修改LAN接口
+              sed -i '/config interface "lan"/,/^$/s/option ipaddr "192.168.6.1"/option ipaddr "192.168.88.1"/g' "$config_file"
+              sed -i "/config interface 'lan'/,/^$/s/option ipaddr '192.168.6.1'/option ipaddr '192.168.88.1'/g" "$config_file"
               cat "$config_file" | grep -A 5 "config interface 'lan'"
             done
             echo "✅ 默认LAN IP地址已修改为 192.168.88.1"
