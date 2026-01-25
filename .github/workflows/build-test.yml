@@ -1,8 +1,6 @@
 name: Build ImmortalWrt H5000M
 
 on:
-  schedule:
-    - cron: '0 16 * * 0'  # 每周一北京时间 00:00
   workflow_dispatch:
     inputs:
       enable_adguardhome:
