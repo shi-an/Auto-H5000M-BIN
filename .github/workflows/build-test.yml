@@ -152,31 +152,115 @@ jobs:
       enable_easytier: ${{ steps.set-env.outputs.enable_easytier }}
       enable_lucky: ${{ steps.set-env.outputs.enable_lucky }}
     steps:
+      - name: 恢复插件配置缓存
+        uses: actions/cache@v4
+        id: restore-config
+        with:
+          path: config/plugins.json
+          key: plugins-config-
+
       - name: 设置环境变量
         id: set-env
         run: |
-          # 从 workflow_dispatch inputs 读取配置
-          echo "enable_adguardhome=${{ github.event.inputs.enable_adguardhome || 'false' }}" >> $GITHUB_OUTPUT
-          echo "enable_openclash=${{ github.event.inputs.enable_openclash || 'false' }}" >> $GITHUB_OUTPUT
-          echo "enable_nikki=${{ github.event.inputs.enable_nikki || 'false' }}" >> $GITHUB_OUTPUT
-          echo "enable_upnp=${{ github.event.inputs.enable_upnp || 'false' }}" >> $GITHUB_OUTPUT
-          echo "enable_vlmcsd=${{ github.event.inputs.enable_vlmcsd || 'false' }}" >> $GITHUB_OUTPUT
-          echo "enable_mosdns=${{ github.event.inputs.enable_mosdns || 'false' }}" >> $GITHUB_OUTPUT
-          echo "enable_dockerman=${{ github.event.inputs.enable_dockerman || 'false' }}" >> $GITHUB_OUTPUT
-          echo "enable_qmodem_next=${{ github.event.inputs.enable_qmodem_next || 'false' }}" >> $GITHUB_OUTPUT
-          echo "enable_qmodem=${{ github.event.inputs.enable_qmodem || 'false' }}" >> $GITHUB_OUTPUT
-          echo "enable_mwan=${{ github.event.inputs.enable_mwan || 'false' }}" >> $GITHUB_OUTPUT
-          echo "enable_homeproxy=${{ github.event.inputs.enable_homeproxy || 'false' }}" >> $GITHUB_OUTPUT
-          echo "enable_adbyby_plus=${{ github.event.inputs.enable_adbyby_plus || 'false' }}" >> $GITHUB_OUTPUT
-          echo "enable_original_modem=${{ github.event.inputs.enable_original_modem || 'false' }}" >> $GITHUB_OUTPUT
-          echo "enable_bandix=${{ github.event.inputs.enable_bandix || 'false' }}" >> $GITHUB_OUTPUT
-          echo "enable_netspeedtest=${{ github.event.inputs.enable_netspeedtest || 'false' }}" >> $GITHUB_OUTPUT
-          echo "enable_at_webserver=${{ github.event.inputs.enable_at_webserver || 'false' }}" >> $GITHUB_OUTPUT
-          echo "enable_zerotier=${{ github.event.inputs.enable_zerotier || 'false' }}" >> $GITHUB_OUTPUT
-          echo "enable_wrtbwmon=${{ github.event.inputs.enable_wrtbwmon || 'false' }}" >> $GITHUB_OUTPUT
-          echo "enable_watchcat=${{ github.event.inputs.enable_watchcat || 'false' }}" >> $GITHUB_OUTPUT
-          echo "enable_easytier=${{ github.event.inputs.enable_easytier || 'false' }}" >> $GITHUB_OUTPUT
-          echo "enable_lucky=${{ github.event.inputs.enable_lucky || 'false' }}" >> $GITHUB_OUTPUT
+          echo "🔧 设置环境变量..."
+          
+          # 检查是否有缓存的配置
+          if [ -f "config/plugins.json" ]; then
+            echo "📂 发现缓存的插件配置，使用缓存配置..."
+            # 从缓存的配置文件中读取
+            ENABLE_ADGUARDHOME=$(jq -r '.enable_adguardhome' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_OPENCLASH=$(jq -r '.enable_openclash' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_NIKKI=$(jq -r '.enable_nikki' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_UPNP=$(jq -r '.enable_upnp' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_VLMCSD=$(jq -r '.enable_vlmcsd' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_MOSDNS=$(jq -r '.enable_mosdns' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_DOCKERMAN=$(jq -r '.enable_dockerman' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_QMODEM_NEXT=$(jq -r '.enable_qmodem_next' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_QMODEM=$(jq -r '.enable_qmodem' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_MWAN=$(jq -r '.enable_mwan' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_HOMEPROXY=$(jq -r '.enable_homeproxy' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_ADBYBY_PLUS=$(jq -r '.enable_adbyby_plus' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_ORIGINAL_MODEM=$(jq -r '.enable_original_modem' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_BANDIX=$(jq -r '.enable_bandix' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_NETSPEEDTEST=$(jq -r '.enable_netspeedtest' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_AT_WEBSERVER=$(jq -r '.enable_at_webserver' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_ZEROTIER=$(jq -r '.enable_zerotier' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_WRTBWMON=$(jq -r '.enable_wrtbwmon' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_WATCHCAT=$(jq -r '.enable_watchcat' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_EASYTIER=$(jq -r '.enable_easytier' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_LUCKY=$(jq -r '.enable_lucky' config/plugins.json 2>/dev/null || echo 'false')
+          else
+            echo "🔄 无缓存配置，使用默认值..."
+            # 从 workflow_dispatch inputs 读取配置，如果没有则使用默认值
+            ENABLE_ADGUARDHOME="${{ github.event.inputs.enable_adguardhome || 'false' }}"
+            ENABLE_OPENCLASH="${{ github.event.inputs.enable_openclash || 'false' }}"
+            ENABLE_NIKKI="${{ github.event.inputs.enable_nikki || 'false' }}"
+            ENABLE_UPNP="${{ github.event.inputs.enable_upnp || 'false' }}"
+            ENABLE_VLMCSD="${{ github.event.inputs.enable_vlmcsd || 'false' }}"
+            ENABLE_MOSDNS="${{ github.event.inputs.enable_mosdns || 'false' }}"
+            ENABLE_DOCKERMAN="${{ github.event.inputs.enable_dockerman || 'false' }}"
+            ENABLE_QMODEM_NEXT="${{ github.event.inputs.enable_qmodem_next || 'false' }}"
+            ENABLE_QMODEM="${{ github.event.inputs.enable_qmodem || 'false' }}"
+            ENABLE_MWAN="${{ github.event.inputs.enable_mwan || 'false' }}"
+            ENABLE_HOMEPROXY="${{ github.event.inputs.enable_homeproxy || 'false' }}"
+            ENABLE_ADBYBY_PLUS="${{ github.event.inputs.enable_adbyby_plus || 'false' }}"
+            ENABLE_ORIGINAL_MODEM="${{ github.event.inputs.enable_original_modem || 'false' }}"
+            ENABLE_BANDIX="${{ github.event.inputs.enable_bandix || 'false' }}"
+            ENABLE_NETSPEEDTEST="${{ github.event.inputs.enable_netspeedtest || 'false' }}"
+            ENABLE_AT_WEBSERVER="${{ github.event.inputs.enable_at_webserver || 'false' }}"
+            ENABLE_ZEROTIER="${{ github.event.inputs.enable_zerotier || 'false' }}"
+            ENABLE_WRTBWMON="${{ github.event.inputs.enable_wrtbwmon || 'false' }}"
+            ENABLE_WATCHCAT="${{ github.event.inputs.enable_watchcat || 'false' }}"
+            ENABLE_EASYTIER="${{ github.event.inputs.enable_easytier || 'false' }}"
+            ENABLE_LUCKY="${{ github.event.inputs.enable_lucky || 'false' }}"
+          fi
+          
+          # 输出配置
+          echo "enable_adguardhome=$ENABLE_ADGUARDHOME" >> $GITHUB_OUTPUT
+          echo "enable_openclash=$ENABLE_OPENCLASH" >> $GITHUB_OUTPUT
+          echo "enable_nikki=$ENABLE_NIKKI" >> $GITHUB_OUTPUT
+          echo "enable_upnp=$ENABLE_UPNP" >> $GITHUB_OUTPUT
+          echo "enable_vlmcsd=$ENABLE_VLMCSD" >> $GITHUB_OUTPUT
+          echo "enable_mosdns=$ENABLE_MOSDNS" >> $GITHUB_OUTPUT
+          echo "enable_dockerman=$ENABLE_DOCKERMAN" >> $GITHUB_OUTPUT
+          echo "enable_qmodem_next=$ENABLE_QMODEM_NEXT" >> $GITHUB_OUTPUT
+          echo "enable_qmodem=$ENABLE_QMODEM" >> $GITHUB_OUTPUT
+          echo "enable_mwan=$ENABLE_MWAN" >> $GITHUB_OUTPUT
+          echo "enable_homeproxy=$ENABLE_HOMEPROXY" >> $GITHUB_OUTPUT
+          echo "enable_adbyby_plus=$ENABLE_ADBYBY_PLUS" >> $GITHUB_OUTPUT
+          echo "enable_original_modem=$ENABLE_ORIGINAL_MODEM" >> $GITHUB_OUTPUT
+          echo "enable_bandix=$ENABLE_BANDIX" >> $GITHUB_OUTPUT
+          echo "enable_netspeedtest=$ENABLE_NETSPEEDTEST" >> $GITHUB_OUTPUT
+          echo "enable_at_webserver=$ENABLE_AT_WEBSERVER" >> $GITHUB_OUTPUT
+          echo "enable_zerotier=$ENABLE_ZEROTIER" >> $GITHUB_OUTPUT
+          echo "enable_wrtbwmon=$ENABLE_WRTBWMON" >> $GITHUB_OUTPUT
+          echo "enable_watchcat=$ENABLE_WATCHCAT" >> $GITHUB_OUTPUT
+          echo "enable_easytier=$ENABLE_EASYTIER" >> $GITHUB_OUTPUT
+          echo "enable_lucky=$ENABLE_LUCKY" >> $GITHUB_OUTPUT
+          
+          # 显示最终配置
+          echo "📋 最终使用的配置:"
+          echo "• AdGuardHome: $ENABLE_ADGUARDHOME"
+          echo "• OpenClash: $ENABLE_OPENCLASH"
+          echo "• Nikki: $ENABLE_NIKKI"
+          echo "• UPnP: $ENABLE_UPNP"
+          echo "• VLMCSd: $ENABLE_VLMCSD"
+          echo "• MosDNS: $ENABLE_MOSDNS"
+          echo "• DockerMan: $ENABLE_DOCKERMAN"
+          echo "• QModem Next: $ENABLE_QMODEM_NEXT"
+          echo "• QModem: $ENABLE_QMODEM"
+          echo "• MWAN: $ENABLE_MWAN"
+          echo "• HomeProxy: $ENABLE_HOMEPROXY"
+          echo "• Adbyby Plus: $ENABLE_ADBYBY_PLUS"
+          echo "• 原版 Modem: $ENABLE_ORIGINAL_MODEM"
+          echo "• Bandix: $ENABLE_BANDIX"
+          echo "• NetSpeedTest: $ENABLE_NETSPEEDTEST"
+          echo "• AT WebServer: $ENABLE_AT_WEBSERVER"
+          echo "• ZeroTier: $ENABLE_ZEROTIER"
+          echo "• WRtBWMon: $ENABLE_WRTBWMON"
+          echo "• WatchCat: $ENABLE_WATCHCAT"
+          echo "• EasyTier: $ENABLE_EASYTIER"
+          echo "• Lucky: $ENABLE_LUCKY"
 
       - name: 检出代码
         uses: actions/checkout@v4
@@ -204,7 +288,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y build-essential git ccache python3 python3-pip \
             libncurses5-dev libssl-dev libgmp3-dev libmbedtls-dev rustc cargo \
-            golang-go autoconf automake libtool patch make gcc g++
+            golang-go autoconf automake libtool patch make gcc g++ jq
 
           # 设置 ccache
           echo "📦 设置 ccache..."
@@ -687,6 +771,47 @@ jobs:
         run: |
           echo "📦 打包源码和配置..."
           tar --exclude="$SOURCE_DIR/build_dir" --exclude="$SOURCE_DIR/tmp" -czf source.tar.gz $SOURCE_DIR $GITHUB_WORKSPACE/h5000m.extra.config $GITHUB_WORKSPACE/feeds.conf.default 2>/dev/null || true
+
+      - name: 保存插件配置
+        id: save-config
+        run: |
+          echo "保存当前插件配置..."
+          mkdir -p config
+          cat > config/plugins.json << EOF
+          {
+            "enable_adguardhome": "${{ steps.set-env.outputs.enable_adguardhome }}",
+            "enable_openclash": "${{ steps.set-env.outputs.enable_openclash }}",
+            "enable_nikki": "${{ steps.set-env.outputs.enable_nikki }}",
+            "enable_upnp": "${{ steps.set-env.outputs.enable_upnp }}",
+            "enable_vlmcsd": "${{ steps.set-env.outputs.enable_vlmcsd }}",
+            "enable_mosdns": "${{ steps.set-env.outputs.enable_mosdns }}",
+            "enable_dockerman": "${{ steps.set-env.outputs.enable_dockerman }}",
+            "enable_qmodem_next": "${{ steps.set-env.outputs.enable_qmodem_next }}",
+            "enable_qmodem": "${{ steps.set-env.outputs.enable_qmodem }}",
+            "enable_mwan": "${{ steps.set-env.outputs.enable_mwan }}",
+            "enable_homeproxy": "${{ steps.set-env.outputs.enable_homeproxy }}",
+            "enable_adbyby_plus": "${{ steps.set-env.outputs.enable_adbyby_plus }}",
+            "enable_original_modem": "${{ steps.set-env.outputs.enable_original_modem }}",
+            "enable_bandix": "${{ steps.set-env.outputs.enable_bandix }}",
+            "enable_netspeedtest": "${{ steps.set-env.outputs.enable_netspeedtest }}",
+            "enable_at_webserver": "${{ steps.set-env.outputs.enable_at_webserver }}",
+            "enable_zerotier": "${{ steps.set-env.outputs.enable_zerotier }}",
+            "enable_wrtbwmon": "${{ steps.set-env.outputs.enable_wrtbwmon }}",
+            "enable_watchcat": "${{ steps.set-env.outputs.enable_watchcat }}",
+            "enable_easytier": "${{ steps.set-env.outputs.enable_easytier }}",
+            "enable_lucky": "${{ steps.set-env.outputs.enable_lucky }}"
+          }
+          EOF
+          echo "✅ 插件配置保存完成"
+          cat config/plugins.json
+
+      - name: 缓存插件配置
+        uses: actions/cache@v4
+        with:
+          path: config/plugins.json
+          key: plugins-config-${{ github.run_id }}
+          restore-keys: |
+            plugins-config-
 
       - name: 上传源码
         uses: actions/upload-artifact@v4
