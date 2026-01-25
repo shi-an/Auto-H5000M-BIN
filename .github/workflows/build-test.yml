@@ -614,10 +614,10 @@ jobs:
                 echo "🔧 配置 bandix..."
                 # 克隆 bandix 仓库
                 if [ ! -d "package/bandix" ]; then
-                  git clone https://github.com/bandix-org/bandix.git -b main package/bandix
+                  git clone git://github.com/bandix-org/bandix.git -b main package/bandix
                 fi
                 if [ ! -d "package/luci-app-bandix" ]; then
-                  git clone https://github.com/bandix-org/luci-app-bandix.git -b main package/luci-app-bandix
+                  git clone git://github.com/bandix-org/luci-app-bandix.git -b main package/luci-app-bandix
                 fi
                 echo "CONFIG_PACKAGE_luci-app-bandix=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-bandix-zh-cn=y" >> .config
@@ -625,7 +625,7 @@ jobs:
                 echo "🔧 配置 netspeedtest..."
                 # 克隆 netspeedtest 仓库
                 if [ ! -d "package/luci-app-netspeedtest" ]; then
-                  git clone https://github.com/sirpdboy/luci-app-netspeedtest.git -b master package/luci-app-netspeedtest
+                  git clone git://github.com/sirpdboy/luci-app-netspeedtest.git -b master package/luci-app-netspeedtest
                 fi
                 echo "CONFIG_PACKAGE_luci-app-netspeedtest=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-netspeedtest-zh-cn=y" >> .config
@@ -633,7 +633,7 @@ jobs:
                 echo "🔧 配置 at-webserver..."
                 # 克隆 at-webserver 仓库
                 if [ ! -d "package/luci-app-at-webserver" ]; then
-                  git clone https://github.com/at-finger/luci-app-at-webserver.git -b main package/luci-app-at-webserver
+                  git clone git://github.com/at-finger/luci-app-at-webserver.git -b main package/luci-app-at-webserver
                 fi
                 echo "CONFIG_PACKAGE_luci-app-at-webserver=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-at-webserver-zh-cn=y" >> .config
@@ -653,7 +653,7 @@ jobs:
                 echo "🔧 配置 easytier..."
                 # 克隆 easytier 仓库
                 if [ ! -d "package/luci-app-easytier" ]; then
-                  git clone https://github.com/linkease/luci-app-easytier.git -b main package/luci-app-easytier
+                  git clone git://github.com/linkease/luci-app-easytier.git -b main package/luci-app-easytier
                 fi
                 echo "CONFIG_PACKAGE_luci-app-easytier=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-easytier-zh-cn=y" >> .config
@@ -661,7 +661,7 @@ jobs:
                 echo "🔧 配置 lucky..."
                 # 克隆 lucky 仓库
                 if [ ! -d "package/luci-app-lucky" ]; then
-                  git clone https://github.com/gdy666/luci-app-lucky.git -b main package/luci-app-lucky
+                  git clone git://github.com/gdy666/luci-app-lucky.git -b main package/luci-app-lucky
                 fi
                 echo "CONFIG_PACKAGE_luci-app-lucky=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-lucky-zh-cn=y" >> .config
@@ -914,6 +914,24 @@ jobs:
               echo "❌ 编译失败"
               exit 1
             }
+          fi
+
+      - name: 修改默认LAN IP地址
+        run: |
+          cd $SOURCE_DIR
+          echo "🔧 修改默认LAN IP地址为 192.168.88.1..."
+          # 查找所有网络配置文件并修改
+          NETWORK_CONFIGS=$(find . -name "network" -path "*/etc/config/*" 2>/dev/null)
+          if [ -n "$NETWORK_CONFIGS" ]; then
+            for config_file in $NETWORK_CONFIGS; do
+              echo "📄 修改网络配置文件: $config_file"
+              sed -i 's/option ipaddr "192.168.6.1"/option ipaddr "192.168.88.1"/g' "$config_file"
+              sed -i "s/option ipaddr '192.168.6.1'/option ipaddr '192.168.88.1'/g" "$config_file"
+              cat "$config_file" | grep -A 5 "config interface 'lan'"
+            done
+            echo "✅ 默认LAN IP地址已修改为 192.168.88.1"
+          else
+            echo "⚠️ 未找到网络配置文件，跳过IP地址修改"
           fi
 
       - name: 打包产物
