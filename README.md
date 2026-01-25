@@ -81,7 +81,7 @@
 
 - [上游源码](https://github.com/padavanonly/immortalwrt-mt798x-24.10)
 - [QModem 项目](https://github.com/FUjr/QModem)
-- [OpenWrt-nikki](https://github.com/morytyann/OpenWrt-mihomo)
+- [OpenWrt-nikki](https://github.com/nikkinikki-org/OpenWrt-nikki)
 - [ImmortalWrt 官网](https://immortalwrt.org/)
 - [项目仓库](https://github.com/existyay/Auto-H5000M-BIN)
 
