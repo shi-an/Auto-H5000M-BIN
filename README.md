@@ -24,9 +24,30 @@
 
 ---
 
-## 📦 可选插件
+## 📦 插件分类
 
-### 🌐 网络管理
+### 🎯 预装主要插件（默认包含）
+
+这些插件在编译时默认包含，无需手动选择：
+
+- **TurboACC-MTK** - MTK 硬件加速
+- **Airpifanctrl** - 风扇控制
+- **Argon 主题** - 美化界面
+- **RamFree** - 内存释放
+- **AutoReboot** - 自动重启
+- **ttyd** - 网页终端
+- **htop** - 系统监控
+- **nethogs** - 网络流量监控
+- **kmod-tun** - TUN 隧道支持
+- **ip-full** - 完整 IP 工具
+- **firewall4** - 防火墙
+- **nftables** - 网络过滤框架
+
+### 📋 可选插件（需手动选择）
+
+这些插件可以在触发编译时根据需要选择：
+
+#### 🌐 网络管理
 
 - **QModem** - 5G/LTE 模组管理（支持 Quectel、Fibocom 等）
 - **QModem Next** - QModem 新版
@@ -38,33 +59,18 @@
 - **Bandix** - 网络流量分析
 - **WatchCat** - 网络监控和自动重启
 - **WRtBWMon** - 带宽监控
-- **EasyTier** - 企业级组网
+- **EasyTier** - 去中心化组网
 
-### 🛡️ 系统工具
+#### 🛡️ 系统工具
 
 - **AdGuardHome** - 广告过滤 & DNS
 - **Adbyby Plus** - 广告过滤
 - **OpenClash** - 代理客户端（预安装内核）
 - **MosDNS** - 现代 DNS 服务器
-- **Argon 主题** - 美化界面
-- **TurboACC-MTK** - MTK 硬件加速
 - **Vlmcsd** - KMS 激活服务器
-- **RamFree** - 内存释放
 - **DockerMan** - Docker 管理
 - **Nikki** - 网络工具
 - **Lucky** - 神机工具箱
-- **AutoReboot** - 自动重启
-- **ttyd** - 网页终端
-- **htop** - 系统监控
-- **nethogs** - 网络流量监控
-
-### 🔌 硬件支持
-
-- **Airpifanctrl** - 风扇控制
-- **kmod-tun** - TUN 隧道支持
-- **ip-full** - 完整 IP 工具
-- **firewall4** - 防火墙
-- **nftables** - 网络过滤框架
 
 ---
 
@@ -85,8 +91,9 @@
 
 - [上游源码](https://github.com/padavanonly/immortalwrt-mt798x-24.10)
 - [QModem 项目](https://github.com/FUjr/QModem)
+- [OpenWrt-mihomo 项目](https://github.com/morytyann/OpenWrt-mihomo)
 - [ImmortalWrt 官网](https://immortalwrt.org/)
-- [项目仓库](https://github.com/shi-an/Auto-H5000M-BIN)
+- [项目仓库](https://github.com/existyay/Auto-H5000M-BIN)
 
 ---
 
