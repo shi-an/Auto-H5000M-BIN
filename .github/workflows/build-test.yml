@@ -376,6 +376,56 @@ jobs:
           
           echo "✅ feeds 处理完成"
 
+      - name: 预装 Clash 内核
+        run: |
+          cd $SOURCE_DIR
+          echo "🔧 预装 Clash 内核..."
+          # 检查是否启用了 OpenClash
+          if [ "${{ steps.set-env.outputs.enable_openclash }}" = "true" ]; then
+            echo "📦 安装 OpenClash 依赖..."
+            # 确保 OpenClash 目录存在
+            mkdir -p feeds/luci/applications/luci-app-openclash/root/etc/openclash/core
+            core_path="feeds/luci/applications/luci-app-openclash/root/etc/openclash/core"
+            goe_path="feeds/luci/applications/luci-app-openclash/root/etc/openclash"
+            
+            # 下载 Clash Meta 内核
+            CLASH_META_URL="https://raw.githubusercontent.com/vernesong/OpenClash/core/master/meta/clash-linux-arm64.tar.gz"
+            GEOIP_URL="https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat"
+            GEOSITE_URL="https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
+            
+            echo "📥 下载 Clash Meta 内核..."
+            wget -qO- $CLASH_META_URL | tar xOvz > $core_path/clash_meta
+            echo "📥 下载 GeoIP 数据..."
+            wget -qO- $GEOIP_URL > $goe_path/GeoIP.dat
+            echo "📥 下载 GeoSite 数据..."
+            wget -qO- $GEOSITE_URL > $goe_path/GeoSite.dat
+            
+            # 设置权限
+            chmod +x $core_path/clash_meta
+            echo "✅ Clash 内核预装完成"
+            ls -la $core_path/
+          else
+            echo "⚠️ 未启用 OpenClash，跳过 Clash 内核预装"
+          fi
+
+      - name: 修改默认LAN IP地址
+        run: |
+          cd $SOURCE_DIR
+          echo "🔧 修改默认LAN IP地址为 192.168.88.1..."
+          # 查找所有网络配置文件并修改
+          NETWORK_CONFIGS=$(find . -name "network" -path "*/etc/config/*" 2>/dev/null)
+          if [ -n "$NETWORK_CONFIGS" ]; then
+            for config_file in $NETWORK_CONFIGS; do
+              echo "📄 修改网络配置文件: $config_file"
+              sed -i 's/option ipaddr "192.168.6.1"/option ipaddr "192.168.88.1"/g' "$config_file"
+              sed -i "s/option ipaddr '192.168.6.1'/option ipaddr '192.168.88.1'/g" "$config_file"
+              cat "$config_file" | grep -A 5 "config interface 'lan'"
+            done
+            echo "✅ 默认LAN IP地址已修改为 192.168.88.1"
+          else
+            echo "⚠️ 未找到网络配置文件，跳过IP地址修改"
+          fi
+
       - name: 修复依赖和补丁
         run: |
           cd $SOURCE_DIR
@@ -914,24 +964,6 @@ jobs:
               echo "❌ 编译失败"
               exit 1
             }
-          fi
-
-      - name: 修改默认LAN IP地址
-        run: |
-          cd $SOURCE_DIR
-          echo "🔧 修改默认LAN IP地址为 192.168.88.1..."
-          # 查找所有网络配置文件并修改
-          NETWORK_CONFIGS=$(find . -name "network" -path "*/etc/config/*" 2>/dev/null)
-          if [ -n "$NETWORK_CONFIGS" ]; then
-            for config_file in $NETWORK_CONFIGS; do
-              echo "📄 修改网络配置文件: $config_file"
-              sed -i 's/option ipaddr "192.168.6.1"/option ipaddr "192.168.88.1"/g' "$config_file"
-              sed -i "s/option ipaddr '192.168.6.1'/option ipaddr '192.168.88.1'/g" "$config_file"
-              cat "$config_file" | grep -A 5 "config interface 'lan'"
-            done
-            echo "✅ 默认LAN IP地址已修改为 192.168.88.1"
-          else
-            echo "⚠️ 未找到网络配置文件，跳过IP地址修改"
           fi
 
       - name: 打包产物
