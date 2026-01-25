@@ -2,9 +2,6 @@ name: Build ImmortalWrt H5000M
 
 on:
   workflow_dispatch:
-  repository_dispatch:
-    types:
-      - Source Code Update
     inputs:
       enable_adguardhome:
         description: '启用 AdGuardHome'
@@ -111,6 +108,9 @@ on:
         required: false
         default: false
         type: boolean
+  repository_dispatch:
+    types:
+      - Source Code Update
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
