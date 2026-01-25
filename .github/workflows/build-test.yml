@@ -412,19 +412,27 @@ jobs:
         run: |
           cd $SOURCE_DIR
           echo "🔧 修改默认LAN IP地址为 192.168.88.1..."
-          # 查找所有网络配置文件并修改
-          NETWORK_CONFIGS=$(find . -name "network" -path "*/etc/config/*" 2>/dev/null)
-          if [ -n "$NETWORK_CONFIGS" ]; then
-            for config_file in $NETWORK_CONFIGS; do
-              echo "📄 修改网络配置文件: $config_file"
-              # 安全地修改IP地址，只修改LAN接口
-              sed -i '/config interface "lan"/,/^$/s/option ipaddr "192.168.6.1"/option ipaddr "192.168.88.1"/g' "$config_file"
-              sed -i "/config interface 'lan'/,/^$/s/option ipaddr '192.168.6.1'/option ipaddr '192.168.88.1'/g" "$config_file"
-              cat "$config_file" | grep -A 5 "config interface 'lan'"
-            done
-            echo "✅ 默认LAN IP地址已修改为 192.168.88.1"
+          
+          # 方法1：修改配置生成脚本（最可靠）
+          if [ -f "package/base-files/files/bin/config_generate" ]; then
+            echo "📄 修改配置生成脚本: package/base-files/files/bin/config_generate"
+            sed -i 's/192.168.6.1/192.168.88.1/g' package/base-files/files/bin/config_generate
+            echo "✅ 配置生成脚本已修改"
           else
-            echo "⚠️ 未找到网络配置文件，跳过IP地址修改"
+            echo "⚠️ 配置生成脚本不存在，尝试方法2"
+            
+            # 方法2：修改所有网络配置文件
+            NETWORK_CONFIGS=$(find . -name "network" -path "*/etc/config/*" 2>/dev/null)
+            if [ -n "$NETWORK_CONFIGS" ]; then
+              for config_file in $NETWORK_CONFIGS; do
+                echo "📄 修改网络配置文件: $config_file"
+                sed -i 's/192.168.6.1/192.168.88.1/g' "$config_file"
+                cat "$config_file" | grep -A 5 "config interface 'lan'"
+              done
+              echo "✅ 默认LAN IP地址已修改为 192.168.88.1"
+            else
+              echo "⚠️ 未找到网络配置文件，跳过IP地址修改"
+            fi
           fi
 
       - name: 修复依赖和补丁
