@@ -1,0 +1,59 @@
+#
+# https://github.com/shi-an/Auto-H5000M-BIN
+#
+# File: .github/workflows/update-checker.yml
+# Description: Source code update checker
+#
+# Copyright (c) 2024 Auto-H5000M-BIN
+#
+# This is free software, licensed under the MIT License.
+# See /LICENSE for more information.
+#
+
+name: Update-Checker
+
+env:
+  REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-24.10
+  REPO_BRANCH: mt798x-mt799x-6.6-mtwifi
+
+on:
+  workflow_dispatch:
+  #schedule:
+    #- cron: 0 0 1/7 * *  # 每周检查一次
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - name: Get Commit Hash
+      id: getHash
+      run: |
+        git clone --depth 1 $REPO_URL -b $REPO_BRANCH .
+        echo "commitHash=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+    - name: Compare Commit Hash
+      id: cacheHash
+      uses: actions/cache@v4
+      with:
+        path: .commitHash
+        key: commitHash_${{ steps.getHash.outputs.commitHash }}
+
+    - name: Save New Commit Hash
+      if: steps.cacheHash.outputs.cache-hit != 'true'
+      run: |
+        echo ${{ steps.getHash.outputs.commitHash }} | tee .commitHash
+
+    - name: Trigger build
+      if: steps.cacheHash.outputs.cache-hit != 'true'
+      uses: peter-evans/repository-dispatch@v2
+      with:
+        token: ${{ secrets.TOKEN }}
+        event-type: Source Code Update
+
+    - name: Delete workflow runs
+      uses: Mattraks/delete-workflow-runs@v2
+      with:
+        retain_days: 0
+        keep_minimum_runs: 2

@@ -2,6 +2,9 @@ name: Build ImmortalWrt H5000M
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types:
+      - Source Code Update
     inputs:
       enable_adguardhome:
         description: '启用 AdGuardHome'
