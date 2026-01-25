@@ -26,9 +26,7 @@
 
 ## 📦 插件分类
 
-### 🎯 预装主要插件（默认包含）
-
-这些插件在编译时默认包含，无需手动选择：
+### 🎯 预装主要插件
 
 - **TurboACC-MTK** - MTK 硬件加速
 - **Airpifanctrl** - 风扇控制
@@ -36,41 +34,33 @@
 - **RamFree** - 内存释放
 - **AutoReboot** - 自动重启
 - **ttyd** - 网页终端
-- **htop** - 系统监控
-- **nethogs** - 网络流量监控
-- **kmod-tun** - TUN 隧道支持
-- **ip-full** - 完整 IP 工具
-- **firewall4** - 防火墙
-- **nftables** - 网络过滤框架
 
 ### 📋 可选插件（需手动选择）
-
-这些插件可以在触发编译时根据需要选择：
 
 #### 🌐 网络管理
 
 - **QModem** - 5G/LTE 模组管理（支持 Quectel、Fibocom 等）
 - **QModem Next** - QModem 新版
 - **HomeProxy** - 现代化多协议代理
+- **OpenClash** - 代理客户端（预安装内核）
+- **Nikki** - 透明代理工具
 - **MWAN3** - 多 WAN 负载均衡
 - **UPnP** - 自动端口映射
 - **ZeroTier** - 虚拟局域网
-- **NetSpeedTest** - 网络测速
-- **Bandix** - 网络流量分析
-- **WatchCat** - 网络监控和自动重启
-- **WRtBWMon** - 带宽监控
 - **EasyTier** - 去中心化组网
+- **Lucky** - 工具箱
 
 #### 🛡️ 系统工具
 
 - **AdGuardHome** - 广告过滤 & DNS
 - **Adbyby Plus** - 广告过滤
-- **OpenClash** - 代理客户端（预安装内核）
 - **MosDNS** - 现代 DNS 服务器
 - **Vlmcsd** - KMS 激活服务器
 - **DockerMan** - Docker 管理
-- **Nikki** - 网络工具
-- **Lucky** - 神机工具箱
+- **WatchCat** - 网络监控和自动重启
+- **NetSpeedTest** - 网络测速
+- **Bandix** - 网络流量分析
+- **WRtBWMon** - 带宽监控
 
 ---
 

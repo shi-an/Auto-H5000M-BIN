@@ -529,6 +529,17 @@ jobs:
             cat "$GITHUB_WORKSPACE/h5000m.extra.config" >> .config
           fi
 
+          # 修改默认LAN IP地址为 192.168.88.1
+          echo "🔧 修改默认LAN IP地址为 192.168.88.1..."
+          if [ -f "package/base-files/files/etc/config/network" ]; then
+            sed -i 's/option ipaddr "192.168.6.1"/option ipaddr "192.168.88.1"/g' package/base-files/files/etc/config/network
+            sed -i "s/option ipaddr '192.168.6.1'/option ipaddr '192.168.88.1'/g" package/base-files/files/etc/config/network
+            echo "✅ 默认LAN IP地址已修改为 192.168.88.1"
+            cat package/base-files/files/etc/config/network | grep -A 5 "config interface 'lan'"
+          else
+            echo "⚠️ 网络配置文件不存在，跳过IP地址修改"
+          fi
+
           # 硬编码指定插件已移至 h5000m.extra.config 文件
 
           # 根据输入动态配置包（简化：只启用顶层包，依赖由 make defconfig 自动解析）
