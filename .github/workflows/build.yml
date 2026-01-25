@@ -1,8 +1,6 @@
 name: Build ImmortalWrt MT798x
 
 on:
-  schedule:
-    - cron: '0 16 * * 0'  # 每周一北京时间 0:00
   workflow_dispatch:
 
 # 添加权限声明，允许创建 Release
