@@ -70,6 +70,46 @@ on:
         required: false
         default: false
         type: boolean
+      enable_bandix:
+        description: '启用 bandix'
+        required: false
+        default: false
+        type: boolean
+      enable_netspeedtest:
+        description: '启用 netspeedtest'
+        required: false
+        default: false
+        type: boolean
+      enable_at_webserver:
+        description: '启用 at-webserver'
+        required: false
+        default: false
+        type: boolean
+      enable_zerotier:
+        description: '启用 zerotier'
+        required: false
+        default: false
+        type: boolean
+      enable_wrtbwmon:
+        description: '启用 wrtbwmon'
+        required: false
+        default: false
+        type: boolean
+      enable_watchcat:
+        description: '启用 watchcat'
+        required: false
+        default: false
+        type: boolean
+      enable_easytier:
+        description: '启用 easytier'
+        required: false
+        default: false
+        type: boolean
+      enable_lucky:
+        description: '启用 lucky'
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -102,6 +142,14 @@ jobs:
       enable_homeproxy: ${{ steps.set-env.outputs.enable_homeproxy }}
       enable_adbyby_plus: ${{ steps.set-env.outputs.enable_adbyby_plus }}
       enable_original_modem: ${{ steps.set-env.outputs.enable_original_modem }}
+      enable_bandix: ${{ steps.set-env.outputs.enable_bandix }}
+      enable_netspeedtest: ${{ steps.set-env.outputs.enable_netspeedtest }}
+      enable_at_webserver: ${{ steps.set-env.outputs.enable_at_webserver }}
+      enable_zerotier: ${{ steps.set-env.outputs.enable_zerotier }}
+      enable_wrtbwmon: ${{ steps.set-env.outputs.enable_wrtbwmon }}
+      enable_watchcat: ${{ steps.set-env.outputs.enable_watchcat }}
+      enable_easytier: ${{ steps.set-env.outputs.enable_easytier }}
+      enable_lucky: ${{ steps.set-env.outputs.enable_lucky }}
     steps:
       - name: 设置环境变量
         id: set-env
@@ -120,6 +168,14 @@ jobs:
           echo "enable_homeproxy=${{ github.event.inputs.enable_homeproxy || 'false' }}" >> $GITHUB_OUTPUT
           echo "enable_adbyby_plus=${{ github.event.inputs.enable_adbyby_plus || 'false' }}" >> $GITHUB_OUTPUT
           echo "enable_original_modem=${{ github.event.inputs.enable_original_modem || 'false' }}" >> $GITHUB_OUTPUT
+          echo "enable_bandix=${{ github.event.inputs.enable_bandix || 'false' }}" >> $GITHUB_OUTPUT
+          echo "enable_netspeedtest=${{ github.event.inputs.enable_netspeedtest || 'false' }}" >> $GITHUB_OUTPUT
+          echo "enable_at_webserver=${{ github.event.inputs.enable_at_webserver || 'false' }}" >> $GITHUB_OUTPUT
+          echo "enable_zerotier=${{ github.event.inputs.enable_zerotier || 'false' }}" >> $GITHUB_OUTPUT
+          echo "enable_wrtbwmon=${{ github.event.inputs.enable_wrtbwmon || 'false' }}" >> $GITHUB_OUTPUT
+          echo "enable_watchcat=${{ github.event.inputs.enable_watchcat || 'false' }}" >> $GITHUB_OUTPUT
+          echo "enable_easytier=${{ github.event.inputs.enable_easytier || 'false' }}" >> $GITHUB_OUTPUT
+          echo "enable_lucky=${{ github.event.inputs.enable_lucky || 'false' }}" >> $GITHUB_OUTPUT
 
       - name: 检出代码
         uses: actions/checkout@v4
@@ -339,6 +395,8 @@ jobs:
             if [ ! -d "package/v2ray-geodata" ]; then
               git clone https://github.com/sbwml/v2ray-geodata package/v2ray-geodata
             fi
+            # 添加汉化包
+            echo "CONFIG_PACKAGE_luci-i18n-mosdns-zh-cn=y" >> .config
           fi
           
           rm -rf package/feeds/packages/{exim,onionshare-cli,python-zope-event,python-zope-interface,python-gevent,python-twisted} 2>/dev/null || true
@@ -386,6 +444,8 @@ jobs:
             cat "$GITHUB_WORKSPACE/h5000m.extra.config" >> .config
           fi
 
+          # 硬编码指定插件已移至 h5000m.extra.config 文件
+
           # 根据输入动态配置包（简化：只启用顶层包，依赖由 make defconfig 自动解析）
           disabled_pkgs=("luci-app-sms-tool-lite" "luci-app-3ginfo-lite")
 
@@ -401,6 +461,14 @@ jobs:
           pkg_enabled["mwan3"]="${{ steps.set-env.outputs.enable_mwan }}"
           pkg_enabled["homeproxy"]="${{ steps.set-env.outputs.enable_homeproxy }}"
           pkg_enabled["adbyby-plus"]="${{ steps.set-env.outputs.enable_adbyby_plus }}"
+          pkg_enabled["bandix"]="${{ steps.set-env.outputs.enable_bandix }}"
+          pkg_enabled["netspeedtest"]="${{ steps.set-env.outputs.enable_netspeedtest }}"
+          pkg_enabled["at-webserver"]="${{ steps.set-env.outputs.enable_at_webserver }}"
+          pkg_enabled["zerotier"]="${{ steps.set-env.outputs.enable_zerotier }}"
+          pkg_enabled["wrtbwmon"]="${{ steps.set-env.outputs.enable_wrtbwmon }}"
+          pkg_enabled["watchcat"]="${{ steps.set-env.outputs.enable_watchcat }}"
+          pkg_enabled["easytier"]="${{ steps.set-env.outputs.enable_easytier }}"
+          pkg_enabled["lucky"]="${{ steps.set-env.outputs.enable_lucky }}"
 
           for pkg in "${!pkg_enabled[@]}"; do
             if [ "${pkg_enabled[$pkg]}" = "true" ]; then
@@ -421,6 +489,23 @@ jobs:
                 echo "CONFIG_PACKAGE_kmod-nft-socket=y" >> .config
                 echo "CONFIG_PACKAGE_kmod-nft-tproxy=y" >> .config
                 echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
+              elif [ "$pkg" = "openclash" ]; then
+                echo "🔧 配置 openclash..."
+                echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
+                # 预置 Clash 内核
+                echo -e "预置 Clash 内核"
+                mkdir -p feeds/luci/applications/luci-app-openclash/root/etc/openclash/core
+                core_path="feeds/luci/applications/luci-app-openclash/root/etc/openclash/core"
+                goe_path="feeds/luci/applications/luci-app-openclash/root/etc/openclash"
+                CLASH_META_URL="https://raw.githubusercontent.com/vernesong/OpenClash/core/master/meta/clash-linux-arm64.tar.gz"
+                GEOIP_URL="https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat"
+                GEOSITE_URL="https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
+                # 下载并安装内核
+                wget -qO- $CLASH_META_URL | tar xOvz > $core_path/clash_meta
+                wget -qO- $GEOIP_URL > $goe_path/GeoIP.dat
+                wget -qO- $GEOSITE_URL > $goe_path/GeoSite.dat
+                # 设置权限
+                chmod +x $core_path/clash*
               elif [ "$pkg" = "adguardhome" ]; then
                 echo "CONFIG_PACKAGE_luci-app-$pkg=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-$pkg-zh-cn=y" >> .config
@@ -429,17 +514,88 @@ jobs:
                 echo "CONFIG_PACKAGE_luci-app-adbyby-plus=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-adbyby-plus-zh-cn=y" >> .config
                 echo "CONFIG_PACKAGE_ipset=y" >> .config
+              elif [ "$pkg" = "bandix" ]; then
+                echo "🔧 配置 bandix..."
+                # 克隆 bandix 仓库
+                if [ ! -d "package/bandix" ]; then
+                  git clone https://github.com/bandix-org/bandix.git -b main package/bandix
+                fi
+                if [ ! -d "package/luci-app-bandix" ]; then
+                  git clone https://github.com/bandix-org/luci-app-bandix.git -b main package/luci-app-bandix
+                fi
+                echo "CONFIG_PACKAGE_luci-app-bandix=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-bandix-zh-cn=y" >> .config
+              elif [ "$pkg" = "netspeedtest" ]; then
+                echo "🔧 配置 netspeedtest..."
+                # 克隆 netspeedtest 仓库
+                if [ ! -d "package/luci-app-netspeedtest" ]; then
+                  git clone https://github.com/sirpdboy/luci-app-netspeedtest.git -b master package/luci-app-netspeedtest
+                fi
+                echo "CONFIG_PACKAGE_luci-app-netspeedtest=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-netspeedtest-zh-cn=y" >> .config
+              elif [ "$pkg" = "at-webserver" ]; then
+                echo "🔧 配置 at-webserver..."
+                # 克隆 at-webserver 仓库
+                if [ ! -d "package/luci-app-at-webserver" ]; then
+                  git clone https://github.com/at-finger/luci-app-at-webserver.git -b main package/luci-app-at-webserver
+                fi
+                echo "CONFIG_PACKAGE_luci-app-at-webserver=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-at-webserver-zh-cn=y" >> .config
+              elif [ "$pkg" = "zerotier" ]; then
+                echo "CONFIG_PACKAGE_zerotier=y" >> .config
+                echo "CONFIG_PACKAGE_luci-app-zerotier=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-zerotier-zh-cn=y" >> .config
+              elif [ "$pkg" = "wrtbwmon" ]; then
+                echo "CONFIG_PACKAGE_wrtbwmon=y" >> .config
+                echo "CONFIG_PACKAGE_luci-app-wrtbwmon=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-wrtbwmon-zh-cn=y" >> .config
+              elif [ "$pkg" = "watchcat" ]; then
+                echo "CONFIG_PACKAGE_watchcat=y" >> .config
+                echo "CONFIG_PACKAGE_luci-app-watchcat=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-watchcat-zh-cn=y" >> .config
+              elif [ "$pkg" = "easytier" ]; then
+                echo "🔧 配置 easytier..."
+                # 克隆 easytier 仓库
+                if [ ! -d "package/luci-app-easytier" ]; then
+                  git clone https://github.com/linkease/luci-app-easytier.git -b main package/luci-app-easytier
+                fi
+                echo "CONFIG_PACKAGE_luci-app-easytier=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-easytier-zh-cn=y" >> .config
+              elif [ "$pkg" = "lucky" ]; then
+                echo "🔧 配置 lucky..."
+                # 克隆 lucky 仓库
+                if [ ! -d "package/luci-app-lucky" ]; then
+                  git clone https://github.com/gdy666/luci-app-lucky.git -b main package/luci-app-lucky
+                fi
+                echo "CONFIG_PACKAGE_luci-app-lucky=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-lucky-zh-cn=y" >> .config
               else
                 echo "CONFIG_PACKAGE_luci-app-$pkg=y" >> .config
               fi
             else
               # 特殊包禁用时添加所有相关包
               if [ "$pkg" = "nikki" ]; then
-                disabled_pkgs+=("nikki" "luci-app-nikki" "luci-i18n-nikki-zh-cn" "luci-i18n-nikki-en")
+                disabled_pkgs+=('nikki' 'luci-app-nikki' 'luci-i18n-nikki-zh-cn' 'luci-i18n-nikki-en')
               elif [ "$pkg" = "adguardhome" ]; then
-                disabled_pkgs+=("luci-app-$pkg" "luci-i18n-$pkg-zh-cn")
+                disabled_pkgs+=('luci-app-$pkg' 'luci-i18n-$pkg-zh-cn')
+              elif [ "$pkg" = "bandix" ]; then
+                disabled_pkgs+=('luci-app-bandix')
+              elif [ "$pkg" = "netspeedtest" ]; then
+                disabled_pkgs+=('luci-app-netspeedtest')
+              elif [ "$pkg" = "at-webserver" ]; then
+                disabled_pkgs+=('luci-app-at-webserver')
+              elif [ "$pkg" = "zerotier" ]; then
+                disabled_pkgs+=('zerotier' 'luci-app-zerotier')
+              elif [ "$pkg" = "wrtbwmon" ]; then
+                disabled_pkgs+=('wrtbwmon' 'luci-app-wrtbwmon')
+              elif [ "$pkg" = "watchcat" ]; then
+                disabled_pkgs+=('watchcat' 'luci-app-watchcat')
+              elif [ "$pkg" = "easytier" ]; then
+                disabled_pkgs+=('luci-app-easytier')
+              elif [ "$pkg" = "lucky" ]; then
+                disabled_pkgs+=('luci-app-lucky')
               else
-                disabled_pkgs+=("luci-app-$pkg")
+                disabled_pkgs+=('luci-app-$pkg')
               fi
             fi
           done
@@ -456,6 +612,7 @@ jobs:
           # QModem 特殊处理（互斥）
           if [ "${{ steps.set-env.outputs.enable_qmodem_next }}" = "true" ]; then
             echo "CONFIG_PACKAGE_luci-app-qmodem-next=y" >> .config
+            echo "CONFIG_PACKAGE_luci-i18n-qmodem-next-zh-cn=y" >> .config
           elif [ "${{ steps.set-env.outputs.enable_qmodem }}" = "true" ]; then
             echo "CONFIG_PACKAGE_luci-app-qmodem=y" >> .config
             # QModem 核心
@@ -478,6 +635,8 @@ jobs:
             echo "CONFIG_PACKAGE_sms-tool_q=y" >> .config
             echo "CONFIG_PACKAGE_ubus-at-daemon=y" >> .config
             echo "CONFIG_PACKAGE_tom_modem=y" >> .config
+            # 短信界面
+            echo "CONFIG_PACKAGE_luci-app-qmodem-sms=y" >> .config
             # QModem Vendor QMI 驱动
             echo "CONFIG_PACKAGE_kmod-qmi_wwan_q=y" >> .config
             echo "CONFIG_PACKAGE_kmod-qmi_wwan_f=y" >> .config
@@ -485,6 +644,10 @@ jobs:
             # QModem MWAN (多WAN负载均衡)
             echo "CONFIG_PACKAGE_mwan3=y" >> .config
             echo "CONFIG_PACKAGE_luci-app-mwan3=y" >> .config
+            # 如果同时启用了 MWAN，则启用 luci-app-qmodem-mwan
+            if [ "${{ steps.set-env.outputs.enable_mwan }}" = "true" ]; then
+              echo "CONFIG_PACKAGE_luci-app-qmodem-mwan=y" >> .config
+            fi
             # HQOS 支持
             echo "CONFIG_PACKAGE_mtkhqos_util=y" >> .config
           else
@@ -690,6 +853,14 @@ jobs:
           • HomeProxy:     ${{ needs.prepare.outputs.enable_homeproxy }}
           • Adbyby Plus:   ${{ needs.prepare.outputs.enable_adbyby_plus }}
           • 原版 Modem:    ${{ needs.prepare.outputs.enable_original_modem }}
+          • Bandix:        ${{ needs.prepare.outputs.enable_bandix }}
+          • NetSpeedTest:  ${{ needs.prepare.outputs.enable_netspeedtest }}
+          • AT WebServer:  ${{ needs.prepare.outputs.enable_at_webserver }}
+          • ZeroTier:      ${{ needs.prepare.outputs.enable_zerotier }}
+          • WRtBWMon:      ${{ needs.prepare.outputs.enable_wrtbwmon }}
+          • WatchCat:      ${{ needs.prepare.outputs.enable_watchcat }}
+          • EasyTier:      ${{ needs.prepare.outputs.enable_easytier }}
+          • Lucky:         ${{ needs.prepare.outputs.enable_lucky }}
 
           📦 产物文件:
           EOF
@@ -729,6 +900,14 @@ jobs:
             - HomeProxy: ${{ needs.prepare.outputs.enable_homeproxy }}
             - Adbyby Plus: ${{ needs.prepare.outputs.enable_adbyby_plus }}
             - 原版 Modem: ${{ needs.prepare.outputs.enable_original_modem }}
+            - Bandix: ${{ needs.prepare.outputs.enable_bandix }}
+            - NetSpeedTest: ${{ needs.prepare.outputs.enable_netspeedtest }}
+            - AT WebServer: ${{ needs.prepare.outputs.enable_at_webserver }}
+            - ZeroTier: ${{ needs.prepare.outputs.enable_zerotier }}
+            - WRtBWMon: ${{ needs.prepare.outputs.enable_wrtbwmon }}
+            - WatchCat: ${{ needs.prepare.outputs.enable_watchcat }}
+            - EasyTier: ${{ needs.prepare.outputs.enable_easytier }}
+            - Lucky: ${{ needs.prepare.outputs.enable_lucky }}
 
             💾 下载产物: 见下方 Artifacts
             📋 详细信息: 见 MANIFEST.txt
