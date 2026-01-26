@@ -1,0 +1,377 @@
+name: Build ImmortalWrt MT798x
+
+on:
+  workflow_dispatch:
+
+# 添加权限声明，允许创建 Release
+permissions:
+  contents: write
+
+env:
+  REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-24.10
+  REPO_BRANCH: mt798x-mt799x-6.6-mtwifi
+  CONFIG_FILE: mt7987_mt7992.config
+  TZ: Asia/Shanghai
+  SOURCE_DIR: immortalwrt
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    
+    steps:
+      - name: Initialization environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          echo "========== 清理前磁盘空间 =========="
+          df -h
+          
+          # 删除 Docker 镜像
+          docker rmi $(docker images -q) 2>/dev/null || true
+          
+          # 删除不需要的大型组件
+          sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android \
+            /opt/ghc /etc/mysql /etc/php /usr/local/share/boost /usr/share/swift \
+            /opt/hostedtoolcache /usr/local/.ghcup /usr/local/graalvm /imagegeneration
+          
+          # 卸载不需要的软件
+          sudo -E apt-get -y purge azure-cli* docker* ghc* zulu* hhvm* llvm* firefox* \
+            google* dotnet* aspnetcore* powershell* openjdk* adoptopenjdk* mysql* php* \
+            mongodb* moby* snap* || true
+          
+          # 更新并安装依赖
+          sudo -E apt-get -qq update
+          sudo -E apt-get -qq install -y ack antlr3 asciidoc autoconf automake autopoint \
+            binutils bison build-essential bzip2 ccache clang cmake cpio curl device-tree-compiler \
+            ecj fastjar flex gawk gettext gcc-multilib g++-multilib git gnutls-dev gperf haveged \
+            help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev libfuse-dev libglib2.0-dev \
+            libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev \
+            libpython3-dev libreadline-dev libssl-dev libtool lld llvm lrzsz mkisofs msmtp \
+            nano ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply \
+            python3-pyelftools python3-setuptools qemu-utils re2c rsync scons squashfs-tools \
+            subversion swig texinfo uglifyjs unzip upx-ucl vim wget xmlto xxd zlib1g-dev
+          
+          sudo -E apt-get -qq autoremove --purge
+          sudo -E apt-get -qq clean
+          
+          # 设置时区
+          sudo timedatectl set-timezone "$TZ"
+          
+          # 创建工作目录
+          sudo mkdir -p /workdir
+          sudo chown $USER:$GROUPS /workdir
+          
+          echo "========== 清理后磁盘空间 =========="
+          df -h
+          
+          # 验证空间
+          AVAIL_GB=$(df -BG /home/runner | tail -1 | awk '{print int($4)}')
+          echo "🖥️ Runner: $(nproc) cores, $(free -g | awk '/Mem:/{print $2}')GB RAM"
+          echo "💾 可用磁盘空间: ${AVAIL_GB}GB"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ env.CONFIG_FILE }}
+          max-size: 8G
+          save: true
+
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.SOURCE_DIR }}/dl
+            ${{ env.SOURCE_DIR }}/staging_dir/host
+            ${{ env.SOURCE_DIR }}/staging_dir/toolchain-*
+            ${{ env.SOURCE_DIR }}/staging_dir/target-*
+            ${{ env.SOURCE_DIR }}/build_dir/host
+            ${{ env.SOURCE_DIR }}/build_dir/toolchain-*
+          key: ${{ runner.os }}-build-${{ env.CONFIG_FILE }}-${{ hashFiles('**/feeds.conf.default') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.CONFIG_FILE }}-
+
+      - name: Clone source & setup feeds
+        run: |
+          # ccache 优化 - 更激进的配置
+          ccache --set-config=compression=true --set-config=compression_level=6
+          ccache --set-config=sloppiness=file_macro,time_macros,include_file_mtime,include_file_ctime,pch_defines,locale
+          ccache --set-config=max_size=8G
+          ccache --set-config=depend_mode=true
+          
+          # 克隆或更新源码
+          if [ -d "$SOURCE_DIR/.git" ]; then
+            echo "源码目录已存在，更新中..."
+            cd $SOURCE_DIR
+            git fetch origin $REPO_BRANCH
+            git reset --hard origin/$REPO_BRANCH
+            git clean -fd
+          else
+            echo "首次克隆源码..."
+            rm -rf $SOURCE_DIR
+            git clone -b $REPO_BRANCH --single-branch --depth=1 $REPO_URL $SOURCE_DIR
+            cd $SOURCE_DIR
+          fi
+          
+          # 添加 QModem feed & 更新
+          grep -q "qmodem" feeds.conf.default || echo 'src-git qmodem https://github.com/FUjr/QModem.git;main' >> feeds.conf.default
+          # 添加 Mihomo feed
+          grep -q "mihomo" feeds.conf.default || echo 'src-git mihomo https://github.com/morytyann/OpenWrt-mihomo.git;main' >> feeds.conf.default
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a -f
+          
+          # ======== 克隆额外的软件包 ========
+          echo "克隆额外软件包..."
+          
+          # 克隆 luci-app-adguardhome (如果不存在)
+          [ ! -d "package/luci-app-adguardhome" ] && \
+            git clone --depth=1 https://github.com/rufengsuixing/luci-app-adguardhome.git package/luci-app-adguardhome
+          
+          # 修复 luci-app-adguardhome 的安装脚本（/usr/bin/AdGuardHome 路径冲突问题）
+          # 问题：脚本假设 /usr/bin/AdGuardHome 是目录，但可能是文件
+          AGH_LUCI_SCRIPT="package/luci-app-adguardhome/root/usr/share/AdGuardHome/links.sh"
+          if [ -f "$AGH_LUCI_SCRIPT" ]; then
+            # 在移动/复制前先清理并创建正确的目录结构
+            sed -i 's|mv /usr/bin/AdGuardHome/AdGuardHome|rm -rf /usr/bin/AdGuardHome 2>/dev/null; mkdir -p /usr/bin/AdGuardHome; mv /tmp/AdGuardHomeupdate/AdGuardHome_linux_*/AdGuardHome|g' "$AGH_LUCI_SCRIPT" || true
+          fi
+          
+          # 修复 AdGuardHome 初始化脚本
+          AGH_LUCI_INIT="package/luci-app-adguardhome/root/etc/init.d/AdGuardHome"
+          if [ -f "$AGH_LUCI_INIT" ]; then
+            # 确保 /usr/bin/AdGuardHome 是目录
+            sed -i '/^#!/a\
+          [ -f /usr/bin/AdGuardHome ] && rm -f /usr/bin/AdGuardHome && mkdir -p /usr/bin/AdGuardHome' "$AGH_LUCI_INIT" || true
+          fi
+          
+          # ======== 修复依赖 WARNING ========
+          echo "修复依赖警告..."
+          
+          # 1. 移除不需要的有问题的包
+          rm -rf package/feeds/packages/exim 2>/dev/null || true
+          rm -rf package/feeds/packages/onionshare-cli 2>/dev/null || true
+          rm -rf package/feeds/packages/python-zope-event 2>/dev/null || true
+          rm -rf package/feeds/packages/python-zope-interface 2>/dev/null || true
+          
+          # 2. ndisc6 处理：优先使用源码自带版本，移除 QModem feed 中的重复版本避免冲突
+          # padavanonly 源码在 package/mtk/applications/5g-modem/ndisc 已包含 ndisc6
+          rm -rf package/feeds/qmodem/ndisc6 2>/dev/null || true
+          
+          # 3. 修复 kmod-mhi-wwan 依赖 - 修改 qmodem Makefile 移除该依赖
+          # qmodem 包默认使用 vendor 驱动 (pcie_mhi)，不需要 generic mhi-wwan
+          QMODEM_MK="package/feeds/qmodem/qmodem/Makefile"
+          if [ -f "$QMODEM_MK" ]; then
+            # 将 kmod-mhi-wwan 依赖改为注释（禁用）
+            sed -i 's/DEPENDS:=.*+kmod-mhi-wwan/# &/g' "$QMODEM_MK" || true
+            sed -i 's/+kmod-mhi-wwan/+PACKAGE_luci-app-qmodem_GENERIC_MHI_PCIe_DRIVER:kmod-mhi-wwan/g' "$QMODEM_MK" || true
+          fi
+          
+          # 3b. 移除有问题的依赖包 Makefile 定义或禁用它们
+          rm -rf package/feeds/packages/python-gevent 2>/dev/null || true
+          rm -rf package/feeds/packages/python-twisted 2>/dev/null || true
+          
+          # 4. 修复 mt_hwifi 驱动的 kmod-mt_wifi_osal 依赖警告
+          # 注意：不能删除 mt_hwifi，否则 WiFi 无法工作！
+          # 只需忽略这个警告，或者修复 Makefile 中的依赖
+          MT_HWIFI_MK="package/mtk/drivers/mt_hwifi/Makefile"
+          if [ -f "$MT_HWIFI_MK" ]; then
+            # 移除或注释掉不存在的 kmod-mt_wifi_osal 依赖
+            sed -i 's/+kmod-mt_wifi_osal//g' "$MT_HWIFI_MK" || true
+          fi
+          
+          # 5. 修复 AdGuardHome 安装冲突
+          # 情况：AdGuardHome 下载脚本试图将文件移动到 /usr/bin/AdGuardHome，但路径冲突
+          # 解决：修改 AdGuardHome 包的安装脚本，清理并正确创建目录
+          AGH_INIT="package/feeds/packages/adguardhome/files/etc/init.d/AdGuardHome"
+          if [ -f "$AGH_INIT" ]; then
+            # 添加清理和重建逻辑到初始化脚本
+            sed -i '/^#!/a\
+          # 清理冲突的 /usr/bin/AdGuardHome 路径\
+          [ -e /usr/bin/AdGuardHome ] && rm -rf /usr/bin/AdGuardHome\
+          mkdir -p /usr/bin/AdGuardHome' "$AGH_INIT" || true
+          fi
+          
+          # 同时移除包中的冲突文件定义
+          rm -rf package/feeds/packages/adguardhome/files/usr/bin/AdGuardHome 2>/dev/null || true
+          
+          echo "依赖修复完成"
+
+
+      - name: Configure build
+        run: |
+          cd $SOURCE_DIR
+          cp -f defconfig/$CONFIG_FILE .config
+          
+          # 移除旧 modem 配置
+          sed -i '/CONFIG_PACKAGE_luci-app-modem\|CONFIG_PACKAGE_luci-app-3ginfo-lite\|CONFIG_PACKAGE_luci-app-sms-tool/d' .config
+          
+          # 添加所需包配置
+          cat >> .config << 'EOF'
+          # ======== QModem 核心 ========
+          CONFIG_PACKAGE_luci-compat=y
+          CONFIG_PACKAGE_qmodem=y
+          CONFIG_PACKAGE_luci-app-qmodem=y
+          
+          # QModem 驱动选择 - 使用 Vendor 驱动
+          CONFIG_PACKAGE_luci-app-qmodem_INCLUDE_vendor-qmi-wwan=y
+          # CONFIG_PACKAGE_luci-app-qmodem_INCLUDE_generic-qmi-wwan is not set
+          
+          # QModem IPv6 支持
+          CONFIG_PACKAGE_luci-app-qmodem_INCLUDE_ndisc6=y
+          # CONFIG_PACKAGE_luci-app-qmodem_INCLUDE_rdisc6 is not set
+          # CONFIG_PACKAGE_luci-app-qmodem_INCLUDE_no_ndisc_rdisc6 is not set
+          CONFIG_PACKAGE_ndisc6=y
+          
+          # QModem Quectel CM 选择 - 使用 Tom 定制版
+          CONFIG_PACKAGE_luci-app-qmodem_USE_TOM_CUSTOMIZED_QUECTEL_CM=y
+          # CONFIG_PACKAGE_luci-app-qmodem_USING_QWRT_QUECTEL_CM_5G is not set
+          # CONFIG_PACKAGE_luci-app-qmodem_USING_NORMAL_QUECTEL_CM is not set
+          CONFIG_PACKAGE_quectel-CM-5G-M=y
+          
+          # QModem 依赖工具
+          CONFIG_PACKAGE_sms-tool_q=y
+          CONFIG_PACKAGE_ubus-at-daemon=y
+          CONFIG_PACKAGE_tom_modem=y
+          
+          # QModem Vendor QMI 驱动
+          CONFIG_PACKAGE_kmod-qmi_wwan_q=y
+          CONFIG_PACKAGE_kmod-qmi_wwan_f=y
+          CONFIG_PACKAGE_kmod-qmi_wwan_s=y
+          
+          # QModem MWAN (多WAN负载均衡)
+          CONFIG_PACKAGE_luci-app-qmodem-mwan=y
+          CONFIG_PACKAGE_mwan3=y
+          CONFIG_PACKAGE_luci-app-mwan3=y
+          # HQOS 支持
+          CONFIG_PACKAGE_mtkhqos_util=y
+          # ======== 常用软件 ========
+          CONFIG_PACKAGE_luci-app-upnp=y
+          CONFIG_PACKAGE_luci-app-vlmcsd=y
+          CONFIG_PACKAGE_vlmcsd=y
+          CONFIG_PACKAGE_luci-app-adguardhome=y
+          CONFIG_PACKAGE_adguardhome=y
+          CONFIG_PACKAGE_luci-app-ramfree=y
+          CONFIG_PACKAGE_luci-app-homeproxy=y
+          CONFIG_PACKAGE_ca-bundle=y
+          CONFIG_PACKAGE_curl=y
+          CONFIG_PACKAGE_yq=y
+          CONFIG_PACKAGE_firewall4=y
+          CONFIG_PACKAGE_kmod-nft-tproxy=y
+          CONFIG_PACKAGE_ip-full=y
+          CONFIG_PACKAGE_kmod-tun=y
+          
+          # ======== LuCI 主题 ========
+          CONFIG_PACKAGE_luci-theme-argon=y
+          CONFIG_PACKAGE_luci-app-argon-config=y
+          
+          # ======== MTK 硬件加速 ========
+          CONFIG_PACKAGE_luci-app-turboacc-mtk=y
+          
+          # ======== 风扇控制 ========
+          CONFIG_PACKAGE_luci-app-Airpifanctrl=y
+          
+          # ======== 取消默认勾选的包 ========
+          # CONFIG_PACKAGE_luci-app-wrtbwmon is not set
+          # CONFIG_PACKAGE_luci-app-rclone is not set
+          # CONFIG_PACKAGE_rclone is not set
+          # CONFIG_PACKAGE_rclone-ng is not set
+          # CONFIG_PACKAGE_rclone-webui-react is not set
+          
+          # ======== Modem WebUI ======== (已禁用)
+          # CONFIG_PACKAGE_modem-webui is not set
+          
+          # ======== 编译优化 ========
+          CONFIG_CCACHE=y
+          CONFIG_DEVEL=y
+          CONFIG_BUILD_LOG=y
+          CONFIG_KERNEL_BUILD_USER="builder"
+          CONFIG_KERNEL_BUILD_DOMAIN="github.actions"
+          EOF
+          
+          # 确保取消勾选的包被正确处理
+          sed -i '/CONFIG_PACKAGE_luci-app-wrtbwmon=y/d' .config
+          sed -i '/CONFIG_PACKAGE_luci-app-rclone=y/d' .config
+          sed -i '/CONFIG_PACKAGE_rclone=y/d' .config
+          
+          make defconfig
+
+      - name: Verify build config
+        run: |
+          cd $SOURCE_DIR
+          echo "📦 关键包配置状态:"
+          grep -E "CONFIG_PACKAGE_(qmodem|luci-app-qmodem|adguardhome|mihomo)=" .config || true
+
+      - name: Download & Compile
+        run: |
+          cd $SOURCE_DIR
+          THREADS=$(($(nproc) + 1))
+          export PATH="/usr/lib/ccache:$PATH"
+          
+          # 预热 ccache（如果之前有缓存）
+          echo "📊 ccache 缓存状态:"
+          ccache -s | head -20 || true
+          
+          # 下载（带重试，增加并发）
+          for i in 1 2 3; do make download -j16 && break; find dl -size -1024c -delete 2>/dev/null; sleep 3; done
+          
+          # ======== 增量编译优化 ========
+          # 如果 toolchain 已缓存，尝试跳过 toolchain 编译
+          TOOLCHAIN_DIR=$(find staging_dir -maxdepth 1 -type d -name "toolchain-*" 2>/dev/null | head -1)
+          if [ -n "$TOOLCHAIN_DIR" ] && [ -d "$TOOLCHAIN_DIR" ]; then
+            echo "✅ Toolchain 缓存命中: $TOOLCHAIN_DIR"
+            # 安全地 touch stamp 文件（如果存在）
+            find "$TOOLCHAIN_DIR/stamp" -name ".toolchain_*" -exec touch {} \; 2>/dev/null || true
+          else
+            echo "ℹ️ Toolchain 缓存未命中，将完整编译"
+          fi
+          
+          # 编译（使用更多线程）
+          echo "🔨 开始编译 (${THREADS} 线程)..."
+          make -j$THREADS BUILD_LOG=1 IGNORE_ERRORS=m || make -j1 V=s
+          
+          # ccache 最终统计
+          echo "📊 ccache 最终统计:"
+          ccache -s | grep -E "(hit rate|Hits|Misses|Cached)" || true
+
+      - name: Save build cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: |
+            ${{ env.SOURCE_DIR }}/dl
+            ${{ env.SOURCE_DIR }}/staging_dir/host
+            ${{ env.SOURCE_DIR }}/staging_dir/toolchain-*
+            ${{ env.SOURCE_DIR }}/staging_dir/target-*
+            ${{ env.SOURCE_DIR }}/build_dir/host
+            ${{ env.SOURCE_DIR }}/build_dir/toolchain-*
+          key: ${{ runner.os }}-build-${{ env.CONFIG_FILE }}-${{ hashFiles('**/feeds.conf.default') }}-${{ github.run_id }}
+
+      - name: Prepare & Upload artifacts
+        run: |
+          mkdir -p artifacts
+          find $SOURCE_DIR/bin/targets -type f \( -name "*.bin" -o -name "*.img.gz" \) -exec cp {} artifacts/ \;
+          ls -lh artifacts/
+
+      - name: Upload to Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: ImmortalWrt-MT7987-${{ github.run_number }}
+          path: artifacts/
+          retention-days: 30
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: MT798x-${{ github.run_number }}
+          name: ImmortalWrt MT7987/MT7992
+          body: |
+            🔧 自动构建 ImmortalWrt MT7987/MT7992 固件
+            📅 时间: ${{ github.event.repository.updated_at }}
+            🌿 分支: ${{ env.REPO_BRANCH }}
+          prerelease: true
+          files: artifacts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
