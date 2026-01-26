@@ -365,8 +365,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ github.run_number }}
-          name: ImmortalWrt MT7987/MT7992 #${{ github.run_number }}
+          tag_name: MT798x-${{ github.run_number }}
+          name: ImmortalWrt MT7987/MT7992 ${{ github.run_number }}
           body: |
             🔧 自动构建 ImmortalWrt MT7987/MT7992 固件
             📅 时间: ${{ github.event.repository.updated_at }}
