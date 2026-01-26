@@ -26,9 +26,10 @@
 
 ## 📦 插件分类
 
-### 🎯 预装主要插件
+### 🎯 预装插件
 
 - **TurboACC-MTK** - MTK 硬件加速
+- **EQoS-MTK** - 网络流量控制
 - **Airpifanctrl** - 风扇控制
 - **Argon 主题** - 美化界面
 - **RamFree** - 内存释放
