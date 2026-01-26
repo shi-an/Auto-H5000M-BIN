@@ -1092,8 +1092,8 @@ jobs:
       - name: 创建 GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ github.run_number }}
-          name: ImmortalWrt H5000M #${{ github.run_number }}
+          tag_name: h5000m-${{ github.run_number }}
+          name: ImmortalWrt H5000M ${{ github.run_number }}
           body: |
             🎉 **ImmortalWrt H5000M 固件已构建完成**
 
