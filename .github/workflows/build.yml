@@ -382,9 +382,20 @@ jobs:
           echo "📥 克隆第三方仓库..."
           
           # Bandix
-          if [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && [ ! -d "package/luci-app-bandix" ]; then
-            echo "📥 克隆 bandix 仓库..."
-            git clone https://github.com/timsaya/luci-app-bandix.git -b main package/luci-app-bandix
+          if [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ]; then
+            # 克隆 luci-app-bandix 前端
+            if [ ! -d "package/luci-app-bandix" ]; then
+              echo "📥 克隆 luci-app-bandix 前端仓库..."
+              git clone https://github.com/timsaya/luci-app-bandix.git -b main package/luci-app-bandix
+            fi
+            # 克隆 bandix 核心包到 luci-app-bandix 目录
+            if [ ! -d "package/luci-app-bandix/openwrt-bandix" ]; then
+              echo "📥 克隆 bandix 核心包仓库..."
+              git clone https://github.com/timsaya/openwrt-bandix.git -b main /tmp/openwrt-bandix
+              mkdir -p package/luci-app-bandix/openwrt-bandix
+              cp -r /tmp/openwrt-bandix/openwrt-bandix/* package/luci-app-bandix/openwrt-bandix/
+              rm -rf /tmp/openwrt-bandix
+            fi
           fi
           
           # NetSpeedTest
