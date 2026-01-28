@@ -376,47 +376,40 @@ jobs:
           
           echo "✅ feeds 处理完成"
 
-      - name: 预装 Clash 内核
+      - name: 克隆第三方仓库
         run: |
           cd $SOURCE_DIR
-          echo "🔧 预装 Clash 内核..."
-          # 检查是否启用了 OpenClash
-          if [ "${{ steps.set-env.outputs.enable_openclash }}" = "true" ]; then
-            echo "📦 安装 OpenClash 依赖..."
-            # 确保 OpenClash 目录存在
-            mkdir -p feeds/luci/applications/luci-app-openclash/root/etc/openclash/core
-            core_path="feeds/luci/applications/luci-app-openclash/root/etc/openclash/core"
-            goe_path="feeds/luci/applications/luci-app-openclash/root/etc/openclash"
-            
-            # 下载 Clash Meta 内核
-            CLASH_META_URL="https://raw.githubusercontent.com/vernesong/OpenClash/core/master/meta/clash-linux-arm64.tar.gz"
-            GEOIP_URL="https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat"
-            GEOSITE_URL="https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
-            
-            echo "📥 下载 Clash Meta 内核..."
-            wget -qO- $CLASH_META_URL | tar xOvz > $core_path/clash_meta
-            echo "📥 下载 GeoIP 数据..."
-            wget -qO- $GEOIP_URL > $goe_path/GeoIP.dat
-            echo "📥 下载 GeoSite 数据..."
-            wget -qO- $GEOSITE_URL > $goe_path/GeoSite.dat
-            
-            # 设置权限
-            chmod +x $core_path/clash_meta
-            echo "✅ Clash 内核预装完成"
-            ls -la $core_path/
-          else
-            echo "⚠️ 未启用 OpenClash，跳过 Clash 内核预装"
-          fi
-
-      - name: 修改默认LAN IP地址
-        run: |
-          cd $SOURCE_DIR
-          echo "🔧 修改默认LAN IP地址为 192.168.88.1..."
+          echo "📥 克隆第三方仓库..."
           
-          # 使用config_generate脚本方法（最可靠）
-          sed -i 's/192.168.6.1/192.168.88.1/g' package/base-files/files/bin/config_generate
-          echo "✅ 配置生成脚本已修改，默认LAN IP地址已设置为 192.168.88.1"
-          cat package/base-files/files/bin/config_generate | grep -E "192\.168\.88\.1" || true
+          # Bandix
+          if [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && [ ! -d "package/luci-app-bandix" ]; then
+            echo "📥 克隆 bandix 仓库..."
+            git clone https://github.com/timsaya/luci-app-bandix.git -b main package/luci-app-bandix
+          fi
+          
+          # NetSpeedTest
+          if [ "${{ steps.set-env.outputs.enable_netspeedtest }}" = "true" ] && [ ! -d "package/luci-app-netspeedtest" ]; then
+            echo "📥 克隆 netspeedtest 仓库..."
+            git clone https://github.com/sirpdboy/luci-app-netspeedtest.git -b master package/luci-app-netspeedtest
+          fi
+          
+          # AT WebServer
+          if [ "${{ steps.set-env.outputs.enable_at_webserver }}" = "true" ] && [ ! -d "package/luci-app-at-webserver" ]; then
+            echo "📥 克隆 at-webserver 仓库..."
+            git clone https://github.com/inotdream/mt5700webui-openwrt-server.git -b main package/luci-app-at-webserver
+          fi
+          
+          # EasyTier
+          if [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ] && [ ! -d "package/luci-app-easytier" ]; then
+            echo "📥 克隆 easytier 仓库..."
+            git clone https://github.com/EasyTier/luci-app-easytier.git -b main package/luci-app-easytier
+          fi
+          
+          # Lucky
+          if [ "${{ steps.set-env.outputs.enable_lucky }}" = "true" ] && [ ! -d "package/luci-app-lucky" ]; then
+            echo "📥 克隆 lucky 仓库..."
+            git clone https://github.com/gdy666/luci-app-lucky.git -b main package/luci-app-lucky
+          fi
 
       - name: 修复依赖和补丁
         run: |
@@ -538,6 +531,45 @@ jobs:
           # 修复 mt_hwifi
           [ -f "package/mtk/drivers/mt_hwifi/Makefile" ] && sed -i 's/+kmod-mt_wifi_osal//g' "package/mtk/drivers/mt_hwifi/Makefile" || true
 
+          # 预装 Clash 内核
+          echo "🔧 预装 Clash 内核..."
+          # 检查是否启用了 OpenClash
+          if [ "${{ steps.set-env.outputs.enable_openclash }}" = "true" ]; then
+            echo "📦 安装 OpenClash 依赖..."
+            # 确保 OpenClash 目录存在
+            mkdir -p feeds/luci/applications/luci-app-openclash/root/etc/openclash/core
+            core_path="feeds/luci/applications/luci-app-openclash/root/etc/openclash/core"
+            goe_path="feeds/luci/applications/luci-app-openclash/root/etc/openclash"
+            
+            # 下载 Clash Meta 内核
+            CLASH_META_URL="https://raw.githubusercontent.com/vernesong/OpenClash/core/master/meta/clash-linux-arm64.tar.gz"
+            GEOIP_URL="https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat"
+            GEOSITE_URL="https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
+            
+            echo "📥 下载 Clash Meta 内核..."
+            wget -qO- $CLASH_META_URL | tar xOvz > $core_path/clash_meta
+            echo "📥 下载 GeoIP 数据..."
+            wget -qO- $GEOIP_URL > $goe_path/GeoIP.dat
+            echo "📥 下载 GeoSite 数据..."
+            wget -qO- $GEOSITE_URL > $goe_path/GeoSite.dat
+            
+            # 设置权限
+            chmod +x $core_path/clash_meta
+            echo "✅ Clash 内核预装完成"
+            ls -la $core_path/
+          else
+            echo "⚠️ 未启用 OpenClash，跳过 Clash 内核预装"
+          fi
+
+      - name: 修改默认LAN IP地址
+        run: |
+          cd $SOURCE_DIR
+          echo "🔧 修改默认LAN IP地址为 192.168.88.1..."
+          
+          # 使用config_generate脚本方法（最可靠）
+          sed -i 's/192.168.6.1/192.168.88.1/g' package/base-files/files/bin/config_generate
+          echo "✅ 配置生成脚本已修改，默认LAN IP地址已设置为 192.168.88.1"
+          cat package/base-files/files/bin/config_generate | grep -E "192\.168\.88\.1" || true
 
       - name: 配置构建
         run: |
@@ -645,57 +677,14 @@ jobs:
                 echo "CONFIG_PACKAGE_ipset=y" >> .config
               elif [ "$pkg" = "bandix" ]; then
                 echo "🔧 配置 bandix..."
-                # 克隆 bandix 仓库
-                if [ ! -d "package/bandix" ]; then
-                  echo "📥 克隆 bandix 仓库..."
-                  for i in {1..5}; do
-                    git clone https://github.com/bandix-org/bandix.git -b main package/bandix && break || {
-                      echo "⚠️ 第 $i 次克隆失败，重试中..."
-                      rm -rf package/bandix 2>/dev/null || true
-                      sleep 2
-                    }
-                  done
-                fi
-                if [ ! -d "package/luci-app-bandix" ]; then
-                  echo "📥 克隆 luci-app-bandix 仓库..."
-                  for i in {1..5}; do
-                    git clone https://github.com/bandix-org/luci-app-bandix.git -b main package/luci-app-bandix && break || {
-                      echo "⚠️ 第 $i 次克隆失败，重试中..."
-                      rm -rf package/luci-app-bandix 2>/dev/null || true
-                      sleep 2
-                    }
-                  done
-                fi
                 echo "CONFIG_PACKAGE_luci-app-bandix=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-bandix-zh-cn=y" >> .config
               elif [ "$pkg" = "netspeedtest" ]; then
                 echo "🔧 配置 netspeedtest..."
-                # 克隆 netspeedtest 仓库
-                if [ ! -d "package/luci-app-netspeedtest" ]; then
-                  echo "📥 克隆 netspeedtest 仓库..."
-                  for i in {1..5}; do
-                    git clone https://github.com/sirpdboy/luci-app-netspeedtest.git -b master package/luci-app-netspeedtest && break || {
-                      echo "⚠️ 第 $i 次克隆失败，重试中..."
-                      rm -rf package/luci-app-netspeedtest 2>/dev/null || true
-                      sleep 2
-                    }
-                  done
-                fi
                 echo "CONFIG_PACKAGE_luci-app-netspeedtest=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-netspeedtest-zh-cn=y" >> .config
               elif [ "$pkg" = "at-webserver" ]; then
                 echo "🔧 配置 at-webserver..."
-                # 克隆 at-webserver 仓库
-                if [ ! -d "package/luci-app-at-webserver" ]; then
-                  echo "📥 克隆 at-webserver 仓库..."
-                  for i in {1..5}; do
-                    git clone https://github.com/at-finger/luci-app-at-webserver.git -b main package/luci-app-at-webserver && break || {
-                      echo "⚠️ 第 $i 次克隆失败，重试中..."
-                      rm -rf package/luci-app-at-webserver 2>/dev/null || true
-                      sleep 2
-                    }
-                  done
-                fi
                 echo "CONFIG_PACKAGE_luci-app-at-webserver=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-at-webserver-zh-cn=y" >> .config
               elif [ "$pkg" = "zerotier" ]; then
@@ -712,32 +701,10 @@ jobs:
                 echo "CONFIG_PACKAGE_luci-i18n-watchcat-zh-cn=y" >> .config
               elif [ "$pkg" = "easytier" ]; then
                 echo "🔧 配置 easytier..."
-                # 克隆 easytier 仓库
-                if [ ! -d "package/luci-app-easytier" ]; then
-                  echo "📥 克隆 easytier 仓库..."
-                  for i in {1..5}; do
-                    git clone https://github.com/linkease/luci-app-easytier.git -b main package/luci-app-easytier && break || {
-                      echo "⚠️ 第 $i 次克隆失败，重试中..."
-                      rm -rf package/luci-app-easytier 2>/dev/null || true
-                      sleep 2
-                    }
-                  done
-                fi
                 echo "CONFIG_PACKAGE_luci-app-easytier=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-easytier-zh-cn=y" >> .config
               elif [ "$pkg" = "lucky" ]; then
                 echo "🔧 配置 lucky..."
-                # 克隆 lucky 仓库
-                if [ ! -d "package/luci-app-lucky" ]; then
-                  echo "📥 克隆 lucky 仓库..."
-                  for i in {1..5}; do
-                    git clone https://github.com/gdy666/luci-app-lucky.git -b main package/luci-app-lucky && break || {
-                      echo "⚠️ 第 $i 次克隆失败，重试中..."
-                      rm -rf package/luci-app-lucky 2>/dev/null || true
-                      sleep 2
-                    }
-                  done
-                fi
                 echo "CONFIG_PACKAGE_luci-app-lucky=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-lucky-zh-cn=y" >> .config
               else
