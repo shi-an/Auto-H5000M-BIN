@@ -383,18 +383,18 @@ jobs:
           
           # Bandix
           if [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ]; then
+            # 克隆 bandix 核心包
+            if [ ! -d "package/bandix" ]; then
+              echo "📥 克隆 bandix 核心包仓库..."
+              git clone https://github.com/timsaya/openwrt-bandix.git -b main /tmp/openwrt-bandix
+              mkdir -p package/bandix
+              cp -r /tmp/openwrt-bandix/openwrt-bandix/* package/bandix/
+              rm -rf /tmp/openwrt-bandix
+            fi
             # 克隆 luci-app-bandix 前端
             if [ ! -d "package/luci-app-bandix" ]; then
               echo "📥 克隆 luci-app-bandix 前端仓库..."
               git clone https://github.com/timsaya/luci-app-bandix.git -b main package/luci-app-bandix
-            fi
-            # 克隆 bandix 核心包到 luci-app-bandix 目录
-            if [ ! -d "package/luci-app-bandix/openwrt-bandix" ]; then
-              echo "📥 克隆 bandix 核心包仓库..."
-              git clone https://github.com/timsaya/openwrt-bandix.git -b main /tmp/openwrt-bandix
-              mkdir -p package/luci-app-bandix/openwrt-bandix
-              cp -r /tmp/openwrt-bandix/openwrt-bandix/* package/luci-app-bandix/openwrt-bandix/
-              rm -rf /tmp/openwrt-bandix
             fi
           fi
           
@@ -688,6 +688,7 @@ jobs:
                 echo "CONFIG_PACKAGE_ipset=y" >> .config
               elif [ "$pkg" = "bandix" ]; then
                 echo "🔧 配置 bandix..."
+                echo "CONFIG_PACKAGE_bandix=y" >> .config
                 echo "CONFIG_PACKAGE_luci-app-bandix=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-bandix-zh-cn=y" >> .config
               elif [ "$pkg" = "netspeedtest" ]; then
