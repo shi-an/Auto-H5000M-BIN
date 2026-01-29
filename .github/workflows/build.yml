@@ -691,6 +691,11 @@ jobs:
                 echo "CONFIG_PACKAGE_bandix=y" >> .config
                 echo "CONFIG_PACKAGE_luci-app-bandix=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-bandix-zh-cn=y" >> .config
+                # 添加 luci-app-bandix 依赖包
+                echo "CONFIG_PACKAGE_curl=y" >> .config
+                echo "CONFIG_PACKAGE_luci-lib-jsonc=y" >> .config
+                echo "CONFIG_PACKAGE_jsonfilter=y" >> .config
+                echo "CONFIG_PACKAGE_jshn=y" >> .config
               elif [ "$pkg" = "netspeedtest" ]; then
                 echo "🔧 配置 netspeedtest..."
                 echo "CONFIG_PACKAGE_luci-app-netspeedtest=y" >> .config
