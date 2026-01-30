@@ -68,11 +68,6 @@ on:
         required: false
         default: false
         type: boolean
-      enable_bandix:
-        description: '启用 bandix'
-        required: false
-        default: false
-        type: boolean
       enable_netspeedtest:
         description: '启用 netspeedtest'
         required: false
@@ -143,7 +138,6 @@ jobs:
       enable_homeproxy: ${{ steps.set-env.outputs.enable_homeproxy }}
       enable_adbyby_plus: ${{ steps.set-env.outputs.enable_adbyby_plus }}
       enable_original_modem: ${{ steps.set-env.outputs.enable_original_modem }}
-      enable_bandix: ${{ steps.set-env.outputs.enable_bandix }}
       enable_netspeedtest: ${{ steps.set-env.outputs.enable_netspeedtest }}
       enable_at_webserver: ${{ steps.set-env.outputs.enable_at_webserver }}
       enable_zerotier: ${{ steps.set-env.outputs.enable_zerotier }}
@@ -181,7 +175,6 @@ jobs:
             ENABLE_HOMEPROXY=$(jq -r '.enable_homeproxy' config/plugins.json 2>/dev/null || echo 'false')
             ENABLE_ADBYBY_PLUS=$(jq -r '.enable_adbyby_plus' config/plugins.json 2>/dev/null || echo 'false')
             ENABLE_ORIGINAL_MODEM=$(jq -r '.enable_original_modem' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_BANDIX=$(jq -r '.enable_bandix' config/plugins.json 2>/dev/null || echo 'false')
             ENABLE_NETSPEEDTEST=$(jq -r '.enable_netspeedtest' config/plugins.json 2>/dev/null || echo 'false')
             ENABLE_AT_WEBSERVER=$(jq -r '.enable_at_webserver' config/plugins.json 2>/dev/null || echo 'false')
             ENABLE_ZEROTIER=$(jq -r '.enable_zerotier' config/plugins.json 2>/dev/null || echo 'false')
@@ -205,7 +198,6 @@ jobs:
             ENABLE_HOMEPROXY="${{ github.event.inputs.enable_homeproxy || 'false' }}"
             ENABLE_ADBYBY_PLUS="${{ github.event.inputs.enable_adbyby_plus || 'false' }}"
             ENABLE_ORIGINAL_MODEM="${{ github.event.inputs.enable_original_modem || 'false' }}"
-            ENABLE_BANDIX="${{ github.event.inputs.enable_bandix || 'false' }}"
             ENABLE_NETSPEEDTEST="${{ github.event.inputs.enable_netspeedtest || 'false' }}"
             ENABLE_AT_WEBSERVER="${{ github.event.inputs.enable_at_webserver || 'false' }}"
             ENABLE_ZEROTIER="${{ github.event.inputs.enable_zerotier || 'false' }}"
@@ -229,7 +221,6 @@ jobs:
           echo "enable_homeproxy=$ENABLE_HOMEPROXY" >> $GITHUB_OUTPUT
           echo "enable_adbyby_plus=$ENABLE_ADBYBY_PLUS" >> $GITHUB_OUTPUT
           echo "enable_original_modem=$ENABLE_ORIGINAL_MODEM" >> $GITHUB_OUTPUT
-          echo "enable_bandix=$ENABLE_BANDIX" >> $GITHUB_OUTPUT
           echo "enable_netspeedtest=$ENABLE_NETSPEEDTEST" >> $GITHUB_OUTPUT
           echo "enable_at_webserver=$ENABLE_AT_WEBSERVER" >> $GITHUB_OUTPUT
           echo "enable_zerotier=$ENABLE_ZEROTIER" >> $GITHUB_OUTPUT
@@ -253,7 +244,6 @@ jobs:
           echo "• HomeProxy: $ENABLE_HOMEPROXY"
           echo "• Adbyby Plus: $ENABLE_ADBYBY_PLUS"
           echo "• 原版 Modem: $ENABLE_ORIGINAL_MODEM"
-          echo "• Bandix: $ENABLE_BANDIX"
           echo "• NetSpeedTest: $ENABLE_NETSPEEDTEST"
           echo "• AT WebServer: $ENABLE_AT_WEBSERVER"
           echo "• ZeroTier: $ENABLE_ZEROTIER"
@@ -380,12 +370,6 @@ jobs:
         run: |
           cd $SOURCE_DIR
           echo "📥 克隆第三方仓库..."
-          
-          # Bandix
-          if [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && [ ! -d "package/luci-app-bandix" ]; then
-            echo "📥 克隆 bandix 仓库..."
-            git clone https://github.com/timsaya/luci-app-bandix.git -b main package/luci-app-bandix
-          fi
           
           # NetSpeedTest
           if [ "${{ steps.set-env.outputs.enable_netspeedtest }}" = "true" ] && [ ! -d "package/luci-app-netspeedtest" ]; then
@@ -622,7 +606,6 @@ jobs:
           pkg_enabled["mwan3"]="${{ steps.set-env.outputs.enable_mwan }}"
           pkg_enabled["homeproxy"]="${{ steps.set-env.outputs.enable_homeproxy }}"
           pkg_enabled["adbyby-plus"]="${{ steps.set-env.outputs.enable_adbyby_plus }}"
-          pkg_enabled["bandix"]="${{ steps.set-env.outputs.enable_bandix }}"
           pkg_enabled["netspeedtest"]="${{ steps.set-env.outputs.enable_netspeedtest }}"
           pkg_enabled["at-webserver"]="${{ steps.set-env.outputs.enable_at_webserver }}"
           pkg_enabled["zerotier"]="${{ steps.set-env.outputs.enable_zerotier }}"
@@ -675,10 +658,6 @@ jobs:
                 echo "CONFIG_PACKAGE_luci-app-adbyby-plus=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-adbyby-plus-zh-cn=y" >> .config
                 echo "CONFIG_PACKAGE_ipset=y" >> .config
-              elif [ "$pkg" = "bandix" ]; then
-                echo "🔧 配置 bandix..."
-                echo "CONFIG_PACKAGE_luci-app-bandix=y" >> .config
-                echo "CONFIG_PACKAGE_luci-i18n-bandix-zh-cn=y" >> .config
               elif [ "$pkg" = "netspeedtest" ]; then
                 echo "🔧 配置 netspeedtest..."
                 echo "CONFIG_PACKAGE_luci-app-netspeedtest=y" >> .config
@@ -714,10 +693,8 @@ jobs:
               # 特殊包禁用时添加所有相关包
               if [ "$pkg" = "nikki" ]; then
                 disabled_pkgs+=('nikki' 'luci-app-nikki' 'luci-i18n-nikki-zh-cn' 'luci-i18n-nikki-en')
-              elif [ "$pkg" = "adguardhome" ]; then
+              elif [ "$pkg" = "adbyby-plus" ]; then
                 disabled_pkgs+=('luci-app-$pkg' 'luci-i18n-$pkg-zh-cn')
-              elif [ "$pkg" = "bandix" ]; then
-                disabled_pkgs+=('luci-app-bandix')
               elif [ "$pkg" = "netspeedtest" ]; then
                 disabled_pkgs+=('luci-app-netspeedtest')
               elif [ "$pkg" = "at-webserver" ]; then
@@ -845,7 +822,6 @@ jobs:
             "enable_homeproxy": "${{ steps.set-env.outputs.enable_homeproxy }}",
             "enable_adbyby_plus": "${{ steps.set-env.outputs.enable_adbyby_plus }}",
             "enable_original_modem": "${{ steps.set-env.outputs.enable_original_modem }}",
-            "enable_bandix": "${{ steps.set-env.outputs.enable_bandix }}",
             "enable_netspeedtest": "${{ steps.set-env.outputs.enable_netspeedtest }}",
             "enable_at_webserver": "${{ steps.set-env.outputs.enable_at_webserver }}",
             "enable_zerotier": "${{ steps.set-env.outputs.enable_zerotier }}",
@@ -1031,8 +1007,7 @@ jobs:
           • MWAN:          ${{ needs.prepare.outputs.enable_mwan }}
           • HomeProxy:     ${{ needs.prepare.outputs.enable_homeproxy }}
           • Adbyby Plus:   ${{ needs.prepare.outputs.enable_adbyby_plus }}
-          • 原版 Modem:    ${{ needs.prepare.outputs.enable_original_modem }}
-          • Bandix:        ${{ needs.prepare.outputs.enable_bandix }}
+          • 原版 Modem:   ${{ needs.prepare.outputs.enable_original_modem }}
           • NetSpeedTest:  ${{ needs.prepare.outputs.enable_netspeedtest }}
           • AT WebServer:  ${{ needs.prepare.outputs.enable_at_webserver }}
           • ZeroTier:      ${{ needs.prepare.outputs.enable_zerotier }}
@@ -1079,7 +1054,6 @@ jobs:
             - HomeProxy: ${{ needs.prepare.outputs.enable_homeproxy }}
             - Adbyby Plus: ${{ needs.prepare.outputs.enable_adbyby_plus }}
             - 原版 Modem: ${{ needs.prepare.outputs.enable_original_modem }}
-            - Bandix: ${{ needs.prepare.outputs.enable_bandix }}
             - NetSpeedTest: ${{ needs.prepare.outputs.enable_netspeedtest }}
             - AT WebServer: ${{ needs.prepare.outputs.enable_at_webserver }}
             - ZeroTier: ${{ needs.prepare.outputs.enable_zerotier }}
