@@ -400,31 +400,40 @@ jobs:
           fi
 
       - name: 下载 Release 软件包并准备自动安装
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd $SOURCE_DIR
-          # 创建 files 目录（OpenWrt 编译时会自动将此目录文件打包进固件根目录）
           INSTALL_DIR="files/root/ipks"
           mkdir -p $INSTALL_DIR
-          
-          # 创建初始化脚本目录
           mkdir -p files/etc/uci-defaults
 
-          # --- 下载 EasyTier (方法 A) ---
+          # --- 下载 EasyTier ---
           if [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ]; then
-            echo "📥 下载 EasyTier Release..."
-            ET_URL=$(curl -s https://api.github.com/repos/EasyTier/luci-app-easytier/releases/latest | jq -r '.assets[] | select(.name | contains("aarch64_cortex-a53")).browser_download_url')
-            wget -qO /tmp/easytier.zip "$ET_URL"
-            unzip -o /tmp/easytier.zip -d $INSTALL_DIR/
+            echo "📥 获取 EasyTier Release URL..."
+            ET_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/EasyTier/luci-app-easytier/releases/latest | jq -r '.assets[] | select(.name | contains("aarch64_cortex-a53")).browser_download_url')
+            if [ -n "$ET_URL" ] && [ "$ET_URL" != "null" ]; then
+              echo "正在下载: $ET_URL"
+              wget -qO /tmp/easytier.zip "$ET_URL"
+              unzip -o /tmp/easytier.zip -d $INSTALL_DIR/
+            else
+              echo "❌ 无法获取 EasyTier 下载地址，请检查仓库 Release 名称"
+            fi
           fi
 
-          # --- 下载 Bandix (方法 A) ---
+          # --- 下载 Bandix ---
           if [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ]; then
-            echo "📥 下载 Bandix Release..."
-            # 下载核心
-            BD_CORE_URL=$(curl -s https://api.github.com/repos/timsaya/openwrt-bandix/releases/latest | jq -r '.assets[] | select(.name | contains("aarch64_cortex-a53")).browser_download_url')
-            wget -P $INSTALL_DIR/ "$BD_CORE_URL"
-            # 下载 LuCI 界面和语言包
-            curl -s https://api.github.com/repos/timsaya/luci-app-bandix/releases/latest | jq -r '.assets[].browser_download_url' | xargs -n 1 wget -P $INSTALL_DIR/
+            echo "📥 获取 Bandix Release URL..."
+            # 下载核心 (使用通配符确保匹配)
+            BD_CORE_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/timsaya/openwrt-bandix/releases/latest | jq -r '.assets[] | select(.name | contains("aarch64_cortex-a53")).browser_download_url')
+            
+            if [ -n "$BD_CORE_URL" ] && [ "$BD_CORE_URL" != "null" ]; then
+              wget -P $INSTALL_DIR/ "$BD_CORE_URL"
+              # 下载 LuCI 界面和语言包
+              curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/timsaya/luci-app-bandix/releases/latest | jq -r '.assets[].browser_download_url' | xargs -n 1 wget -P $INSTALL_DIR/
+            else
+              echo "❌ 无法获取 Bandix 下载地址"
+            fi
           fi
 
           # --- 创建自动安装脚本 ---
@@ -436,7 +445,6 @@ jobs:
             opkg install /root/ipks/bandix*.ipk
             opkg install /root/ipks/luci-app-*.ipk
             opkg install /root/ipks/luci-i18n-*.ipk
-            # 安装后删除安装包以节省空间
             rm -rf /root/ipks
           fi
           exit 0
