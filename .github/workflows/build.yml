@@ -686,6 +686,7 @@ jobs:
           pkg_enabled["watchcat"]="${{ steps.set-env.outputs.enable_watchcat }}"
           pkg_enabled["easytier"]="${{ steps.set-env.outputs.enable_easytier }}"
           pkg_enabled["lucky"]="${{ steps.set-env.outputs.enable_lucky }}"
+          pkg_enabled["bandix"]="${{ steps.set-env.outputs.enable_bandix }}"
 
           for pkg in "${!pkg_enabled[@]}"; do
             if [ "${pkg_enabled[$pkg]}" = "true" ]; then
@@ -759,6 +760,10 @@ jobs:
                 echo "🔧 配置 lucky..."
                 echo "CONFIG_PACKAGE_luci-app-lucky=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-lucky-zh-cn=y" >> .config
+              elif [ "$pkg" = "bandix" ]; then
+                echo "🔧 配置 bandix..."
+                echo "CONFIG_PACKAGE_luci-app-bandix=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-bandix-zh-cn=y" >> .config
               else
                 echo "CONFIG_PACKAGE_luci-app-$pkg=y" >> .config
               fi
@@ -782,6 +787,8 @@ jobs:
                 disabled_pkgs+=('luci-app-easytier')
               elif [ "$pkg" = "lucky" ]; then
                 disabled_pkgs+=('luci-app-lucky')
+              elif [ "$pkg" = "bandix" ]; then
+                disabled_pkgs+=('luci-app-bandix')
               else
                 disabled_pkgs+=('luci-app-$pkg')
               fi
