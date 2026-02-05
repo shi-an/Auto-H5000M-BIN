@@ -104,7 +104,7 @@ on:
         default: false
         type: boolean
       enable_bandix:
-        description: '启用 Bandix (网速均衡)'
+        description: '启用 Bandix'
         required: false
         default: false
         type: boolean
@@ -429,8 +429,12 @@ jobs:
           # --- 下载 Bandix ---
           if [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ]; then
             echo "📥 获取 Bandix Release URL..."
-            # 下载核心 (使用通配符确保匹配)
-            BD_CORE_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/timsaya/openwrt-bandix/releases/latest | jq -r '.assets[] | select(.name | contains("aarch64_cortex-a53")).browser_download_url')
+            # 下载核心 (只选择 .ipk 文件，确保只返回一个结果)
+            BD_CORE_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/timsaya/openwrt-bandix/releases/latest | jq -r '.assets[] | select(.name | contains("aarch64_cortex-a53") and (contains(".ipk") or contains(".IPK"))).browser_download_url | select(. != null) | .' | head -1)
+            # 如果没有找到 .ipk 文件，则使用第一个匹配的 URL
+            if [ -z "$BD_CORE_URL" ] || [ "$BD_CORE_URL" = "null" ]; then
+              BD_CORE_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/timsaya/openwrt-bandix/releases/latest | jq -r '.assets[] | select(.name | contains("aarch64_cortex-a53")).browser_download_url | select(. != null) | .' | head -1)
+            fi
             
             if [ -n "$BD_CORE_URL" ] && [ "$BD_CORE_URL" != "null" ]; then
               wget -P $INSTALL_DIR/ "$BD_CORE_URL"
