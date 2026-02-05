@@ -411,7 +411,12 @@ jobs:
           # --- 下载 EasyTier ---
           if [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ]; then
             echo "📥 获取 EasyTier Release URL..."
-            ET_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/EasyTier/luci-app-easytier/releases/latest | jq -r '.assets[] | select(.name | contains("aarch64_cortex-a53")).browser_download_url')
+            # 只选择非 SNAPSHOT 版本的 URL，确保只返回一个结果
+            ET_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/EasyTier/luci-app-easytier/releases/latest | jq -r '.assets[] | select(.name | contains("aarch64_cortex-a53") and (contains("SNAPSHOT") | not)).browser_download_url | select(. != null) | .')
+            # 如果没有找到非 SNAPSHOT 版本，则使用第一个匹配的 URL
+            if [ -z "$ET_URL" ] || [ "$ET_URL" = "null" ]; then
+              ET_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/EasyTier/luci-app-easytier/releases/latest | jq -r '.assets[] | select(.name | contains("aarch64_cortex-a53")).browser_download_url | select(. != null) | .' | head -1)
+            fi
             if [ -n "$ET_URL" ] && [ "$ET_URL" != "null" ]; then
               echo "正在下载: $ET_URL"
               wget -qO /tmp/easytier.zip "$ET_URL"
