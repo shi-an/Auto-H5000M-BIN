@@ -103,6 +103,11 @@ on:
         required: false
         default: false
         type: boolean
+      enable_bandix:
+        description: '启用 Bandix (网速均衡)'
+        required: false
+        default: false
+        type: boolean
   repository_dispatch:
     types:
       - Source Code Update
@@ -145,6 +150,7 @@ jobs:
       enable_watchcat: ${{ steps.set-env.outputs.enable_watchcat }}
       enable_easytier: ${{ steps.set-env.outputs.enable_easytier }}
       enable_lucky: ${{ steps.set-env.outputs.enable_lucky }}
+      enable_bandix: ${{ steps.set-env.outputs.enable_bandix }}
     steps:
       - name: 恢复插件配置缓存
         uses: actions/cache@v4
@@ -182,6 +188,7 @@ jobs:
             ENABLE_WATCHCAT=$(jq -r '.enable_watchcat' config/plugins.json 2>/dev/null || echo 'false')
             ENABLE_EASYTIER=$(jq -r '.enable_easytier' config/plugins.json 2>/dev/null || echo 'false')
             ENABLE_LUCKY=$(jq -r '.enable_lucky' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_BANDIX=$(jq -r '.enable_bandix' config/plugins.json 2>/dev/null || echo 'false')
           else
             echo "🔄 无缓存配置，使用默认值..."
             # 从 workflow_dispatch inputs 读取配置，如果没有则使用默认值
@@ -205,6 +212,7 @@ jobs:
             ENABLE_WATCHCAT="${{ github.event.inputs.enable_watchcat || 'false' }}"
             ENABLE_EASYTIER="${{ github.event.inputs.enable_easytier || 'false' }}"
             ENABLE_LUCKY="${{ github.event.inputs.enable_lucky || 'false' }}"
+            ENABLE_BANDIX="${{ github.event.inputs.enable_bandix || 'false' }}"
           fi
           
           # 输出配置
@@ -228,6 +236,7 @@ jobs:
           echo "enable_watchcat=$ENABLE_WATCHCAT" >> $GITHUB_OUTPUT
           echo "enable_easytier=$ENABLE_EASYTIER" >> $GITHUB_OUTPUT
           echo "enable_lucky=$ENABLE_LUCKY" >> $GITHUB_OUTPUT
+          echo "enable_bandix=$ENABLE_BANDIX" >> $GITHUB_OUTPUT
           
           # 显示最终配置
           echo "📋 最终使用的配置:"
@@ -251,6 +260,7 @@ jobs:
           echo "• WatchCat: $ENABLE_WATCHCAT"
           echo "• EasyTier: $ENABLE_EASYTIER"
           echo "• Lucky: $ENABLE_LUCKY"
+          echo "• Bandix: $ENABLE_BANDIX"
 
       - name: 检出代码
         uses: actions/checkout@v4
@@ -383,17 +393,55 @@ jobs:
             git clone https://github.com/inotdream/mt5700webui-openwrt-server.git -b main package/luci-app-at-webserver
           fi
           
-          # EasyTier
-          if [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ] && [ ! -d "package/luci-app-easytier" ]; then
-            echo "📥 克隆 easytier 仓库..."
-            git clone https://github.com/EasyTier/luci-app-easytier.git -b main package/luci-app-easytier
-          fi
-          
           # Lucky
           if [ "${{ steps.set-env.outputs.enable_lucky }}" = "true" ] && [ ! -d "package/luci-app-lucky" ]; then
             echo "📥 克隆 lucky 仓库..."
             git clone https://github.com/gdy666/luci-app-lucky.git -b main package/luci-app-lucky
           fi
+
+      - name: 下载 Release 软件包并准备自动安装
+        run: |
+          cd $SOURCE_DIR
+          # 创建 files 目录（OpenWrt 编译时会自动将此目录文件打包进固件根目录）
+          INSTALL_DIR="files/root/ipks"
+          mkdir -p $INSTALL_DIR
+          
+          # 创建初始化脚本目录
+          mkdir -p files/etc/uci-defaults
+
+          # --- 下载 EasyTier (方法 A) ---
+          if [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ]; then
+            echo "📥 下载 EasyTier Release..."
+            ET_URL=$(curl -s https://api.github.com/repos/EasyTier/luci-app-easytier/releases/latest | jq -r '.assets[] | select(.name | contains("aarch64_cortex-a53")).browser_download_url')
+            wget -qO /tmp/easytier.zip "$ET_URL"
+            unzip -o /tmp/easytier.zip -d $INSTALL_DIR/
+          fi
+
+          # --- 下载 Bandix (方法 A) ---
+          if [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ]; then
+            echo "📥 下载 Bandix Release..."
+            # 下载核心
+            BD_CORE_URL=$(curl -s https://api.github.com/repos/timsaya/openwrt-bandix/releases/latest | jq -r '.assets[] | select(.name | contains("aarch64_cortex-a53")).browser_download_url')
+            wget -P $INSTALL_DIR/ "$BD_CORE_URL"
+            # 下载 LuCI 界面和语言包
+            curl -s https://api.github.com/repos/timsaya/luci-app-bandix/releases/latest | jq -r '.assets[].browser_download_url' | xargs -n 1 wget -P $INSTALL_DIR/
+          fi
+
+          # --- 创建自动安装脚本 ---
+          cat > files/etc/uci-defaults/99-install-custom-ipks << 'EOF'
+          #!/bin/sh
+          if [ -d "/root/ipks" ]; then
+            # 优先安装核心依赖，再安装界面
+            opkg install /root/ipks/easytier*.ipk
+            opkg install /root/ipks/bandix*.ipk
+            opkg install /root/ipks/luci-app-*.ipk
+            opkg install /root/ipks/luci-i18n-*.ipk
+            # 安装后删除安装包以节省空间
+            rm -rf /root/ipks
+          fi
+          exit 0
+          EOF
+          chmod +x files/etc/uci-defaults/99-install-custom-ipks
 
       - name: 修复依赖和补丁
         run: |
@@ -590,6 +638,14 @@ jobs:
           # IP地址修改已在前面的步骤中完成（使用config_generate脚本方法）
 
           # 硬编码指定插件已移至 h5000m.extra.config 文件
+
+          # 添加 EasyTier 和 Bandix 所需的依赖
+          if [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ] || [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ]; then
+            echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
+            echo "CONFIG_PACKAGE_libstdcpp=y" >> .config
+            echo "CONFIG_PACKAGE_libpthread=y" >> .config
+            echo "CONFIG_PACKAGE_librt=y" >> .config
+          fi
 
           # 根据输入动态配置包（简化：只启用顶层包，依赖由 make defconfig 自动解析）
           disabled_pkgs=("luci-app-sms-tool-lite" "luci-app-3ginfo-lite")
@@ -828,7 +884,8 @@ jobs:
             "enable_wrtbwmon": "${{ steps.set-env.outputs.enable_wrtbwmon }}",
             "enable_watchcat": "${{ steps.set-env.outputs.enable_watchcat }}",
             "enable_easytier": "${{ steps.set-env.outputs.enable_easytier }}",
-            "enable_lucky": "${{ steps.set-env.outputs.enable_lucky }}"
+            "enable_lucky": "${{ steps.set-env.outputs.enable_lucky }}",
+            "enable_bandix": "${{ steps.set-env.outputs.enable_bandix }}"
           }
           EOF
           echo "✅ 插件配置保存完成"
