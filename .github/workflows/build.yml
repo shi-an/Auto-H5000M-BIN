@@ -108,6 +108,11 @@ on:
         required: false
         default: false
         type: boolean
+      enable_daed:
+        description: '启用 daed (eBPF Dashboard)'
+        required: false
+        default: false
+        type: boolean
   repository_dispatch:
     types:
       - Source Code Update
@@ -151,6 +156,7 @@ jobs:
       enable_easytier: ${{ steps.set-env.outputs.enable_easytier }}
       enable_lucky: ${{ steps.set-env.outputs.enable_lucky }}
       enable_bandix: ${{ steps.set-env.outputs.enable_bandix }}
+      enable_daed: ${{ steps.set-env.outputs.enable_daed }}
     steps:
       - name: 恢复插件配置缓存
         uses: actions/cache@v4
@@ -189,6 +195,7 @@ jobs:
             ENABLE_EASYTIER=$(jq -r '.enable_easytier' config/plugins.json 2>/dev/null || echo 'false')
             ENABLE_LUCKY=$(jq -r '.enable_lucky' config/plugins.json 2>/dev/null || echo 'false')
             ENABLE_BANDIX=$(jq -r '.enable_bandix' config/plugins.json 2>/dev/null || echo 'false')
+            ENABLE_DAED=$(jq -r '.enable_daed' config/plugins.json 2>/dev/null || echo 'false')
           else
             echo "🔄 无缓存配置，使用默认值..."
             # 从 workflow_dispatch inputs 读取配置，如果没有则使用默认值
@@ -213,6 +220,7 @@ jobs:
             ENABLE_EASYTIER="${{ github.event.inputs.enable_easytier || 'false' }}"
             ENABLE_LUCKY="${{ github.event.inputs.enable_lucky || 'false' }}"
             ENABLE_BANDIX="${{ github.event.inputs.enable_bandix || 'false' }}"
+            ENABLE_DAED="${{ github.event.inputs.enable_daed || 'false' }}"
           fi
           
           # 输出配置
@@ -237,6 +245,7 @@ jobs:
           echo "enable_easytier=$ENABLE_EASYTIER" >> $GITHUB_OUTPUT
           echo "enable_lucky=$ENABLE_LUCKY" >> $GITHUB_OUTPUT
           echo "enable_bandix=$ENABLE_BANDIX" >> $GITHUB_OUTPUT
+          echo "enable_daed=$ENABLE_DAED" >> $GITHUB_OUTPUT
           
           # 显示最终配置
           echo "📋 最终使用的配置:"
@@ -261,6 +270,7 @@ jobs:
           echo "• EasyTier: $ENABLE_EASYTIER"
           echo "• Lucky: $ENABLE_LUCKY"
           echo "• Bandix: $ENABLE_BANDIX"
+          echo "• Daed: $ENABLE_DAED"
 
       - name: 检出代码
         uses: actions/checkout@v4
@@ -288,7 +298,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y build-essential git ccache python3 python3-pip \
             libncurses5-dev libssl-dev libgmp3-dev libmbedtls-dev rustc cargo \
-            golang-go autoconf automake libtool patch make gcc g++ jq
+            golang-go autoconf automake libtool patch make gcc g++ jq \
+            clang llvm npm
 
           # 设置 ccache
           echo "📦 设置 ccache..."
@@ -409,6 +420,18 @@ jobs:
               echo "❌ lucky 仓库克隆失败"
               exit 1
             fi
+          fi
+          
+          # Daed
+          if [ "${{ steps.set-env.outputs.enable_daed }}" = "true" ] && [ ! -d "package/dae" ]; then
+            echo "📥 克隆 daed 仓库..."
+            git clone https://github.com/QiuSimons/luci-app-daed.git package/dae
+            if [ $? -ne 0 ]; then
+              echo "❌ daed 仓库克隆失败"
+              exit 1
+            fi
+            # 安装 pnpm (编译前端界面需要)
+            sudo npm install -g pnpm
           fi
 
       - name: 下载 Release 软件包并准备自动安装
@@ -544,6 +567,23 @@ jobs:
               echo "CONFIG_PACKAGE_libstdcpp=y" >> features.config
               echo "CONFIG_PACKAGE_libpthread=y" >> features.config
               echo "CONFIG_PACKAGE_librt=y" >> features.config
+          fi
+          
+          if [ "${{ steps.set-env.outputs.enable_daed }}" = "true" ]; then
+              # 软件包配置
+              echo "CONFIG_PACKAGE_luci-app-daed=y" >> features.config
+              echo "CONFIG_PACKAGE_luci-i18n-daed-zh-cn=y" >> features.config
+              # 内核 eBPF 支持配置
+              echo "CONFIG_DEVEL=y" >> features.config
+              echo "CONFIG_KERNEL_DEBUG_INFO=y" >> features.config
+              echo "CONFIG_KERNEL_DEBUG_INFO_REDUCED=n" >> features.config
+              echo "CONFIG_KERNEL_DEBUG_INFO_BTF=y" >> features.config
+              echo "CONFIG_KERNEL_CGROUPS=y" >> features.config
+              echo "CONFIG_KERNEL_CGROUP_BPF=y" >> features.config
+              echo "CONFIG_KERNEL_BPF_EVENTS=y" >> features.config
+              echo "CONFIG_BPF_TOOLCHAIN_HOST=y" >> features.config
+              echo "CONFIG_KERNEL_XDP_SOCKETS=y" >> features.config
+              echo "CONFIG_PACKAGE_kmod-xdp-sockets-diag=y" >> features.config
           fi
           
           if [ "${{ steps.set-env.outputs.enable_nikki }}" = "true" ]; then
