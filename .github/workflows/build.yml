@@ -1294,6 +1294,40 @@ jobs:
             exit 1
           fi
 
+          # 生成 Release 信息
+          echo "🎉 **ImmortalWrt H5000M 固件已构建完成**" > artifacts/release_body.txt
+          echo "" >> artifacts/release_body.txt
+          echo "📅 时间: $(date '+%Y-%m-%d %H:%M:%S')" >> artifacts/release_body.txt
+          echo "🔗 运行 ID: ${{ github.run_id }}" >> artifacts/release_body.txt
+          echo "" >> artifacts/release_body.txt
+          echo "**⚙️ 启用的功能:**" >> artifacts/release_body.txt
+          
+          # 动态生成功能列表
+          [ "${{ needs.prepare.outputs.enable_adguardhome }}" = "true" ] && echo "- AdGuardHome: ${{ needs.prepare.outputs.enable_adguardhome }}" >> artifacts/release_body.txt
+          [ "${{ needs.prepare.outputs.enable_openclash }}" = "true" ] && echo "- OpenClash: ${{ needs.prepare.outputs.enable_openclash }}" >> artifacts/release_body.txt
+          [ "${{ needs.prepare.outputs.enable_nikki }}" = "true" ] && echo "- Nikki: ${{ needs.prepare.outputs.enable_nikki }}" >> artifacts/release_body.txt
+          [ "${{ needs.prepare.outputs.enable_upnp }}" = "true" ] && echo "- UPnP: ${{ needs.prepare.outputs.enable_upnp }}" >> artifacts/release_body.txt
+          [ "${{ needs.prepare.outputs.enable_vlmcsd }}" = "true" ] && echo "- VLMCSd: ${{ needs.prepare.outputs.enable_vlmcsd }}" >> artifacts/release_body.txt
+          [ "${{ needs.prepare.outputs.enable_mosdns }}" = "true" ] && echo "- MosDNS: ${{ needs.prepare.outputs.enable_mosdns }}" >> artifacts/release_body.txt
+          [ "${{ needs.prepare.outputs.enable_dockerman }}" = "true" ] && echo "- DockerMan: ${{ needs.prepare.outputs.enable_dockerman }}" >> artifacts/release_body.txt
+          [ "${{ needs.prepare.outputs.enable_mwan }}" = "true" ] && echo "- MWAN: ${{ needs.prepare.outputs.enable_mwan }}" >> artifacts/release_body.txt
+          [ "${{ needs.prepare.outputs.enable_homeproxy }}" = "true" ] && echo "- HomeProxy: ${{ needs.prepare.outputs.enable_homeproxy }}" >> artifacts/release_body.txt
+          [ "${{ needs.prepare.outputs.enable_adbyby_plus }}" = "true" ] && echo "- Adbyby Plus: ${{ needs.prepare.outputs.enable_adbyby_plus }}" >> artifacts/release_body.txt
+          [ "${{ needs.prepare.outputs.enable_original_modem }}" = "true" ] && echo "- 原版 Modem: ${{ needs.prepare.outputs.enable_original_modem }}" >> artifacts/release_body.txt
+          [ "${{ needs.prepare.outputs.enable_netspeedtest }}" = "true" ] && echo "- NetSpeedTest: ${{ needs.prepare.outputs.enable_netspeedtest }}" >> artifacts/release_body.txt
+          [ "${{ needs.prepare.outputs.enable_at_webserver }}" = "true" ] && echo "- AT WebServer: ${{ needs.prepare.outputs.enable_at_webserver }}" >> artifacts/release_body.txt
+          [ "${{ needs.prepare.outputs.enable_zerotier }}" = "true" ] && echo "- ZeroTier: ${{ needs.prepare.outputs.enable_zerotier }}" >> artifacts/release_body.txt
+          [ "${{ needs.prepare.outputs.enable_wrtbwmon }}" = "true" ] && echo "- WRtBWMon: ${{ needs.prepare.outputs.enable_wrtbwmon }}" >> artifacts/release_body.txt
+          [ "${{ needs.prepare.outputs.enable_watchcat }}" = "true" ] && echo "- WatchCat: ${{ needs.prepare.outputs.enable_watchcat }}" >> artifacts/release_body.txt
+          [ "${{ needs.prepare.outputs.enable_easytier }}" = "true" ] && echo "- EasyTier: ${{ needs.prepare.outputs.enable_easytier }}" >> artifacts/release_body.txt
+          [ "${{ needs.prepare.outputs.enable_lucky }}" = "true" ] && echo "- Lucky: ${{ needs.prepare.outputs.enable_lucky }}" >> artifacts/release_body.txt
+          [ "${{ needs.prepare.outputs.enable_bandix }}" = "true" ] && echo "- Bandix: ${{ needs.prepare.outputs.enable_bandix }}" >> artifacts/release_body.txt
+          [ "${{ needs.prepare.outputs.enable_daed }}" = "true" ] && echo "- Daed: ${{ needs.prepare.outputs.enable_daed }}" >> artifacts/release_body.txt
+          
+          echo "" >> artifacts/release_body.txt
+          echo "💾 下载产物: 见下方 Artifacts" >> artifacts/release_body.txt
+          echo "📋 详细信息: 见 MANIFEST.txt" >> artifacts/release_body.txt
+
           # 生成清单
           cat > artifacts/MANIFEST.txt << EOF
           ╔════════════════════════════════════════════════╗
