@@ -404,23 +404,43 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd $SOURCE_DIR
+          # 标准化 files 目录结构
           INSTALL_DIR="files/root/ipks"
           mkdir -p $INSTALL_DIR
           mkdir -p files/etc/uci-defaults
+          mkdir -p files/etc/config
+          mkdir -p files/etc/init.d
+          mkdir -p files/usr/bin
+          mkdir -p files/usr/lib
+          
+          echo "✅ files 目录结构标准化完成"
 
           # --- 下载 EasyTier ---
           if [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ]; then
             echo "📥 获取 EasyTier Release URL..."
+            # 使用 jq 进行稳健的 JSON 解析
             # 只选择非 SNAPSHOT 版本的 URL，确保只返回一个结果
-            ET_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/EasyTier/luci-app-easytier/releases/latest | jq -r '.assets[] | select(.name | contains("aarch64_cortex-a53") and (contains("SNAPSHOT") | not)).browser_download_url | select(. != null) | .')
+            ET_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/EasyTier/luci-app-easytier/releases/latest | jq -r 'try .assets[] | select(.name | contains("aarch64_cortex-a53") and (contains("SNAPSHOT") | not)).browser_download_url catch ""' | head -1)
             # 如果没有找到非 SNAPSHOT 版本，则使用第一个匹配的 URL
-            if [ -z "$ET_URL" ] || [ "$ET_URL" = "null" ]; then
-              ET_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/EasyTier/luci-app-easytier/releases/latest | jq -r '.assets[] | select(.name | contains("aarch64_cortex-a53")).browser_download_url | select(. != null) | .' | head -1)
+            if [ -z "$ET_URL" ] || [ "$ET_URL" = "null" ] || [ "$ET_URL" = "" ]; then
+              ET_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/EasyTier/luci-app-easytier/releases/latest | jq -r 'try .assets[] | select(.name | contains("aarch64_cortex-a53")).browser_download_url catch ""' | head -1)
             fi
-            if [ -n "$ET_URL" ] && [ "$ET_URL" != "null" ]; then
+            if [ -n "$ET_URL" ] && [ "$ET_URL" != "null" ] && [ "$ET_URL" != "" ]; then
               echo "正在下载: $ET_URL"
               wget -qO /tmp/easytier.zip "$ET_URL"
-              unzip -o /tmp/easytier.zip -d $INSTALL_DIR/
+              # 检查下载结果
+              if [ -f "/tmp/easytier.zip" ] && [ "$(stat -c %s "/tmp/easytier.zip")" -gt 1024 ]; then
+                unzip -o /tmp/easytier.zip -d $INSTALL_DIR/
+                # 检查解压结果
+                IPK_FILES=$(ls -la "$INSTALL_DIR"/easytier*.ipk 2>/dev/null | wc -l)
+                if [ "$IPK_FILES" -gt 0 ]; then
+                  echo "✅ EasyTier 下载并解压成功"
+                else
+                  echo "❌ EasyTier 解压失败"
+                fi
+              else
+                echo "❌ EasyTier 下载失败"
+              fi
             else
               echo "❌ 无法获取 EasyTier 下载地址，请检查仓库 Release 名称"
             fi
@@ -429,20 +449,37 @@ jobs:
           # --- 下载 Bandix ---
           if [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ]; then
             echo "📥 获取 Bandix Release URL..."
-            # 使用 API 直接抓取最新的 IPK (这是最稳的方法)
-            BD_CORE_URL=$(curl -s "https://api.github.com/repos/timsaya/openwrt-bandix/releases/latest" | grep "browser_download_url.*aarch64_cortex-a53.ipk" | cut -d '"' -f 4)
-            BD_LUCI_URLS=$(curl -s "https://api.github.com/repos/timsaya/luci-app-bandix/releases/latest" | grep "browser_download_url.*all.ipk" | cut -d '"' -f 4)
+            # 使用 jq 进行稳健的 JSON 解析
+            BD_CORE_URL=$(curl -s "https://api.github.com/repos/timsaya/openwrt-bandix/releases/latest" | jq -r 'try .assets[] | select(.name | contains("aarch64_cortex-a53") and contains(".ipk")).browser_download_url catch ""' | head -1)
+            BD_LUCI_URLS=$(curl -s "https://api.github.com/repos/timsaya/luci-app-bandix/releases/latest" | jq -r 'try .assets[] | select(.name | contains(".ipk")).browser_download_url catch ""')
             
-            if [ -n "$BD_CORE_URL" ]; then
+            if [ -n "$BD_CORE_URL" ] && [ "$BD_CORE_URL" != "null" ] && [ "$BD_CORE_URL" != "" ]; then
               echo "正在下载 Bandix 核心: $BD_CORE_URL"
               wget -P $INSTALL_DIR/ "$BD_CORE_URL"
+              # 检查下载结果
+              CORE_FILE=$(basename "$BD_CORE_URL")
+              if [ -f "$INSTALL_DIR/$CORE_FILE" ] && [ "$(stat -c %s "$INSTALL_DIR/$CORE_FILE")" -gt 1024 ]; then
+                echo "✅ Bandix 核心下载成功"
+              else
+                echo "❌ Bandix 核心下载失败"
+              fi
+              
               # 下载 LuCI 界面和语言包
-              if [ -n "$BD_LUCI_URLS" ]; then
+              if [ -n "$BD_LUCI_URLS" ] && [ "$BD_LUCI_URLS" != "" ]; then
                 echo "正在下载 Bandix LuCI 包..."
                 echo "$BD_LUCI_URLS" | xargs -n 1 wget -P $INSTALL_DIR/
+                # 检查下载结果
+                LUCI_FILES=$(ls -la "$INSTALL_DIR"/luci-app-bandix*.ipk 2>/dev/null | wc -l)
+                if [ "$LUCI_FILES" -gt 0 ]; then
+                  echo "✅ Bandix LuCI 包下载成功"
+                else
+                  echo "❌ Bandix LuCI 包下载失败"
+                fi
+              else
+                echo "⚠️  无法获取 Bandix LuCI 包地址，跳过下载"
               fi
             else
-              echo "❌ 无法获取 Bandix 下载地址"
+              echo "❌ 无法获取 Bandix 下载地址，可能是 GitHub API 限制或仓库无发布版本"
             fi
           fi
 
@@ -686,6 +723,27 @@ jobs:
           }
 
           cat base.config > .config
+
+          # 依赖预装自动化
+          echo "🔧 依赖预装自动化..."
+          
+          # 建立依赖映射表
+          [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && echo "CONFIG_PACKAGE_zoneinfo-all=y" >> .config
+          [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && echo "CONFIG_PACKAGE_zoneinfo-core=y" >> .config
+          [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
+          [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && echo "CONFIG_PACKAGE_libstdcpp=y" >> .config
+          [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && echo "CONFIG_PACKAGE_libpthread=y" >> .config
+          [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && echo "CONFIG_PACKAGE_librt=y" >> .config
+          [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && echo "CONFIG_PACKAGE_curl=y" >> .config
+          [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && echo "CONFIG_PACKAGE_libopenssl=y" >> .config
+          
+          [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ] && echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
+          [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ] && echo "CONFIG_PACKAGE_libstdcpp=y" >> .config
+          [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ] && echo "CONFIG_PACKAGE_libpthread=y" >> .config
+          [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ] && echo "CONFIG_PACKAGE_librt=y" >> .config
+          [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ] && echo "CONFIG_PACKAGE_libopenssl=y" >> .config
+          
+          echo "✅ 依赖预装自动化完成"
 
           # 应用额外配置
           if [ -f "$GITHUB_WORKSPACE/h5000m.extra.config" ]; then
@@ -949,6 +1007,38 @@ jobs:
           echo "✅ 插件配置保存完成"
           cat config/plugins.json
 
+      - name: 生成功能开启清单
+        run: |
+          mkdir -p config
+          touch config/features_list.txt
+          echo "⚙️ 启用的功能:" > config/features_list.txt
+          echo "" >> config/features_list.txt
+          
+          # 动态生成功能列表
+          [ "${{ steps.set-env.outputs.enable_adguardhome }}" = "true" ] && echo "• AdGuardHome: ${{ steps.set-env.outputs.enable_adguardhome }}" >> config/features_list.txt
+          [ "${{ steps.set-env.outputs.enable_openclash }}" = "true" ] && echo "• OpenClash: ${{ steps.set-env.outputs.enable_openclash }}" >> config/features_list.txt
+          [ "${{ steps.set-env.outputs.enable_nikki }}" = "true" ] && echo "• Nikki: ${{ steps.set-env.outputs.enable_nikki }}" >> config/features_list.txt
+          [ "${{ steps.set-env.outputs.enable_upnp }}" = "true" ] && echo "• UPnP: ${{ steps.set-env.outputs.enable_upnp }}" >> config/features_list.txt
+          [ "${{ steps.set-env.outputs.enable_vlmcsd }}" = "true" ] && echo "• VLMCSd: ${{ steps.set-env.outputs.enable_vlmcsd }}" >> config/features_list.txt
+          [ "${{ steps.set-env.outputs.enable_mosdns }}" = "true" ] && echo "• MosDNS: ${{ steps.set-env.outputs.enable_mosdns }}" >> config/features_list.txt
+          [ "${{ steps.set-env.outputs.enable_dockerman }}" = "true" ] && echo "• DockerMan: ${{ steps.set-env.outputs.enable_dockerman }}" >> config/features_list.txt
+          [ "${{ steps.set-env.outputs.enable_mwan }}" = "true" ] && echo "• MWAN: ${{ steps.set-env.outputs.enable_mwan }}" >> config/features_list.txt
+          [ "${{ steps.set-env.outputs.enable_homeproxy }}" = "true" ] && echo "• HomeProxy: ${{ steps.set-env.outputs.enable_homeproxy }}" >> config/features_list.txt
+          [ "${{ steps.set-env.outputs.enable_adbyby_plus }}" = "true" ] && echo "• Adbyby Plus: ${{ steps.set-env.outputs.enable_adbyby_plus }}" >> config/features_list.txt
+          [ "${{ steps.set-env.outputs.enable_original_modem }}" = "true" ] && echo "• 原版 Modem: ${{ steps.set-env.outputs.enable_original_modem }}" >> config/features_list.txt
+          [ "${{ steps.set-env.outputs.enable_netspeedtest }}" = "true" ] && echo "• NetSpeedTest: ${{ steps.set-env.outputs.enable_netspeedtest }}" >> config/features_list.txt
+          [ "${{ steps.set-env.outputs.enable_at_webserver }}" = "true" ] && echo "• AT WebServer: ${{ steps.set-env.outputs.enable_at_webserver }}" >> config/features_list.txt
+          [ "${{ steps.set-env.outputs.enable_zerotier }}" = "true" ] && echo "• ZeroTier: ${{ steps.set-env.outputs.enable_zerotier }}" >> config/features_list.txt
+          [ "${{ steps.set-env.outputs.enable_wrtbwmon }}" = "true" ] && echo "• WRtBWMon: ${{ steps.set-env.outputs.enable_wrtbwmon }}" >> config/features_list.txt
+          [ "${{ steps.set-env.outputs.enable_watchcat }}" = "true" ] && echo "• WatchCat: ${{ steps.set-env.outputs.enable_watchcat }}" >> config/features_list.txt
+          [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ] && echo "• EasyTier: ${{ steps.set-env.outputs.enable_easytier }}" >> config/features_list.txt
+          [ "${{ steps.set-env.outputs.enable_lucky }}" = "true" ] && echo "• Lucky: ${{ steps.set-env.outputs.enable_lucky }}" >> config/features_list.txt
+          [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && echo "• Bandix: ${{ steps.set-env.outputs.enable_bandix }}" >> config/features_list.txt
+          
+          echo "" >> config/features_list.txt
+          echo "✅ 功能开启清单生成完成"
+          cat config/features_list.txt
+
       - name: 缓存插件配置
         uses: actions/cache@v4
         with:
@@ -1148,31 +1238,17 @@ jobs:
           🔗 运行 ID: ${{ github.run_id }}
           🏷️  Build #: ${{ github.run_number }}
 
-          ⚙️ 启用的功能:
-          • AdGuardHome:   ${{ needs.prepare.outputs.enable_adguardhome }}
-          • OpenClash:     ${{ needs.prepare.outputs.enable_openclash }}
-          • Nikki:        ${{ needs.prepare.outputs.enable_nikki }}
-          • UPnP:          ${{ needs.prepare.outputs.enable_upnp }}
-          • VLMCSd:        ${{ needs.prepare.outputs.enable_vlmcsd }}
-          • MosDNS:        ${{ needs.prepare.outputs.enable_mosdns }}
-          • DockerMan:     ${{ needs.prepare.outputs.enable_dockerman }}
-          • QModem Next:   ${{ needs.prepare.outputs.enable_qmodem_next }}
-          • QModem:        ${{ needs.prepare.outputs.enable_qmodem }}
-          • MWAN:          ${{ needs.prepare.outputs.enable_mwan }}
-          • HomeProxy:     ${{ needs.prepare.outputs.enable_homeproxy }}
-          • Adbyby Plus:   ${{ needs.prepare.outputs.enable_adbyby_plus }}
-          • 原版 Modem:   ${{ needs.prepare.outputs.enable_original_modem }}
-          • NetSpeedTest:  ${{ needs.prepare.outputs.enable_netspeedtest }}
-          • AT WebServer:  ${{ needs.prepare.outputs.enable_at_webserver }}
-          • ZeroTier:      ${{ needs.prepare.outputs.enable_zerotier }}
-          • WRtBWMon:      ${{ needs.prepare.outputs.enable_wrtbwmon }}
-          • WatchCat:      ${{ needs.prepare.outputs.enable_watchcat }}
-          • EasyTier:      ${{ needs.prepare.outputs.enable_easytier }}
-          • Lucky:         ${{ needs.prepare.outputs.enable_lucky }}
-          • Bandix:        ${{ needs.prepare.outputs.enable_bandix }}
-
-          📦 产物文件:
           EOF
+          
+          # 追加功能开启清单
+          if [ -f "$GITHUB_WORKSPACE/config/features_list.txt" ]; then
+            cat "$GITHUB_WORKSPACE/config/features_list.txt" >> artifacts/MANIFEST.txt
+          else
+            echo "⚠️ 功能开启清单文件不存在"
+          fi
+          
+          echo "" >> artifacts/MANIFEST.txt
+          echo "📦 产物文件:" >> artifacts/MANIFEST.txt
 
           cd artifacts
           ls -lh | grep -v "^total" | awk '{print "  • " $9 " (" $5 ")"}' >> MANIFEST.txt
