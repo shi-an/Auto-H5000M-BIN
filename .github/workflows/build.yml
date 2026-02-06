@@ -685,9 +685,8 @@ jobs:
           pkg_enabled["zerotier"]="${{ steps.set-env.outputs.enable_zerotier }}"
           pkg_enabled["wrtbwmon"]="${{ steps.set-env.outputs.enable_wrtbwmon }}"
           pkg_enabled["watchcat"]="${{ steps.set-env.outputs.enable_watchcat }}"
-          pkg_enabled["easytier"]="${{ steps.set-env.outputs.enable_easytier }}"
           pkg_enabled["lucky"]="${{ steps.set-env.outputs.enable_lucky }}"
-          pkg_enabled["bandix"]="${{ steps.set-env.outputs.enable_bandix }}"
+          # 注意：EasyTier 和 Bandix 都通过离线包方式安装，不需要添加到 pkg_enabled 中
 
           for pkg in "${!pkg_enabled[@]}"; do
             if [ "${pkg_enabled[$pkg]}" = "true" ]; then
@@ -753,18 +752,10 @@ jobs:
                 echo "CONFIG_PACKAGE_watchcat=y" >> .config
                 echo "CONFIG_PACKAGE_luci-app-watchcat=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-watchcat-zh-cn=y" >> .config
-              elif [ "$pkg" = "easytier" ]; then
-                echo "🔧 配置 easytier..."
-                echo "CONFIG_PACKAGE_luci-app-easytier=y" >> .config
-                echo "CONFIG_PACKAGE_luci-i18n-easytier-zh-cn=y" >> .config
               elif [ "$pkg" = "lucky" ]; then
                 echo "🔧 配置 lucky..."
                 echo "CONFIG_PACKAGE_luci-app-lucky=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-lucky-zh-cn=y" >> .config
-              elif [ "$pkg" = "bandix" ]; then
-                echo "🔧 配置 bandix..."
-                echo "CONFIG_PACKAGE_luci-app-bandix=y" >> .config
-                echo "CONFIG_PACKAGE_luci-i18n-bandix-zh-cn=y" >> .config
               else
                 echo "CONFIG_PACKAGE_luci-app-$pkg=y" >> .config
               fi
@@ -784,12 +775,8 @@ jobs:
                 disabled_pkgs+=('wrtbwmon' 'luci-app-wrtbwmon')
               elif [ "$pkg" = "watchcat" ]; then
                 disabled_pkgs+=('watchcat' 'luci-app-watchcat')
-              elif [ "$pkg" = "easytier" ]; then
-                disabled_pkgs+=('luci-app-easytier')
               elif [ "$pkg" = "lucky" ]; then
                 disabled_pkgs+=('luci-app-lucky')
-              elif [ "$pkg" = "bandix" ]; then
-                disabled_pkgs+=('luci-app-bandix')
               else
                 disabled_pkgs+=('luci-app-$pkg')
               fi
