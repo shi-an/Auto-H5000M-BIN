@@ -429,17 +429,18 @@ jobs:
           # --- 下载 Bandix ---
           if [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ]; then
             echo "📥 获取 Bandix Release URL..."
-            # 下载核心 (只选择 .ipk 文件，确保只返回一个结果)
-            BD_CORE_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/timsaya/openwrt-bandix/releases/latest | jq -r '.assets[] | select(.name | contains("aarch64_cortex-a53") and (contains(".ipk") or contains(".IPK"))).browser_download_url | select(. != null) | .' | head -1)
-            # 如果没有找到 .ipk 文件，则使用第一个匹配的 URL
-            if [ -z "$BD_CORE_URL" ] || [ "$BD_CORE_URL" = "null" ]; then
-              BD_CORE_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/timsaya/openwrt-bandix/releases/latest | jq -r '.assets[] | select(.name | contains("aarch64_cortex-a53")).browser_download_url | select(. != null) | .' | head -1)
-            fi
+            # 使用 API 直接抓取最新的 IPK (这是最稳的方法)
+            BD_CORE_URL=$(curl -s "https://api.github.com/repos/timsaya/openwrt-bandix/releases/latest" | grep "browser_download_url.*aarch64_cortex-a53.ipk" | cut -d '"' -f 4)
+            BD_LUCI_URLS=$(curl -s "https://api.github.com/repos/timsaya/luci-app-bandix/releases/latest" | grep "browser_download_url.*all.ipk" | cut -d '"' -f 4)
             
-            if [ -n "$BD_CORE_URL" ] && [ "$BD_CORE_URL" != "null" ]; then
+            if [ -n "$BD_CORE_URL" ]; then
+              echo "正在下载 Bandix 核心: $BD_CORE_URL"
               wget -P $INSTALL_DIR/ "$BD_CORE_URL"
               # 下载 LuCI 界面和语言包
-              curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/timsaya/luci-app-bandix/releases/latest | jq -r '.assets[].browser_download_url' | xargs -n 1 wget -P $INSTALL_DIR/
+              if [ -n "$BD_LUCI_URLS" ]; then
+                echo "正在下载 Bandix LuCI 包..."
+                echo "$BD_LUCI_URLS" | xargs -n 1 wget -P $INSTALL_DIR/
+              fi
             else
               echo "❌ 无法获取 Bandix 下载地址"
             fi
@@ -1096,6 +1097,7 @@ jobs:
           • WatchCat:      ${{ needs.prepare.outputs.enable_watchcat }}
           • EasyTier:      ${{ needs.prepare.outputs.enable_easytier }}
           • Lucky:         ${{ needs.prepare.outputs.enable_lucky }}
+          • Bandix:        ${{ needs.prepare.outputs.enable_bandix }}
 
           📦 产物文件:
           EOF
@@ -1142,6 +1144,7 @@ jobs:
             - WatchCat: ${{ needs.prepare.outputs.enable_watchcat }}
             - EasyTier: ${{ needs.prepare.outputs.enable_easytier }}
             - Lucky: ${{ needs.prepare.outputs.enable_lucky }}
+            - Bandix: ${{ needs.prepare.outputs.enable_bandix }}
 
             💾 下载产物: 见下方 Artifacts
             📋 详细信息: 见 MANIFEST.txt
