@@ -685,8 +685,10 @@ jobs:
           pkg_enabled["zerotier"]="${{ steps.set-env.outputs.enable_zerotier }}"
           pkg_enabled["wrtbwmon"]="${{ steps.set-env.outputs.enable_wrtbwmon }}"
           pkg_enabled["watchcat"]="${{ steps.set-env.outputs.enable_watchcat }}"
+          pkg_enabled["easytier"]="${{ steps.set-env.outputs.enable_easytier }}"
           pkg_enabled["lucky"]="${{ steps.set-env.outputs.enable_lucky }}"
-          # 注意：EasyTier 和 Bandix 都通过离线包方式安装，不需要添加到 pkg_enabled 中
+          pkg_enabled["bandix"]="${{ steps.set-env.outputs.enable_bandix }}"
+          # 注意：EasyTier 和 Bandix 都通过离线包方式安装，不在 .config 文件中添加配置
 
           for pkg in "${!pkg_enabled[@]}"; do
             if [ "${pkg_enabled[$pkg]}" = "true" ]; then
@@ -707,6 +709,8 @@ jobs:
                 echo "CONFIG_PACKAGE_kmod-nft-socket=y" >> .config
                 echo "CONFIG_PACKAGE_kmod-nft-tproxy=y" >> .config
                 echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
+              elif [ "$pkg" = "easytier" ] || [ "$pkg" = "bandix" ]; then
+                echo "🔧 $pkg 已在前面的步骤中通过离线包方式处理，跳过配置..."
               elif [ "$pkg" = "openclash" ]; then
                 echo "🔧 配置 openclash..."
                 echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
@@ -775,6 +779,10 @@ jobs:
                 disabled_pkgs+=('wrtbwmon' 'luci-app-wrtbwmon')
               elif [ "$pkg" = "watchcat" ]; then
                 disabled_pkgs+=('watchcat' 'luci-app-watchcat')
+              elif [ "$pkg" = "easytier" ]; then
+                echo "🔧 跳过禁用 $pkg，因为它通过离线包方式安装"
+              elif [ "$pkg" = "bandix" ]; then
+                echo "🔧 跳过禁用 $pkg，因为它通过离线包方式安装"
               elif [ "$pkg" = "lucky" ]; then
                 disabled_pkgs+=('luci-app-lucky')
               else
