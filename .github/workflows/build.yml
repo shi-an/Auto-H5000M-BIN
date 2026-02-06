@@ -461,6 +461,46 @@ jobs:
           EOF
           chmod +x files/etc/uci-defaults/99-install-custom-ipks
 
+      - name: 插件配置关联
+        run: |
+          cd $SOURCE_DIR
+          touch features.config
+          
+          # 逻辑统一：开启插件时，强制关联开启依赖
+          if [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ]; then
+              echo "CONFIG_PACKAGE_zoneinfo-all=y" >> features.config
+              echo "CONFIG_PACKAGE_zoneinfo-core=y" >> features.config
+              echo "CONFIG_PACKAGE_kmod-tun=y" >> features.config
+              echo "CONFIG_PACKAGE_libstdcpp=y" >> features.config
+              echo "CONFIG_PACKAGE_libpthread=y" >> features.config
+              echo "CONFIG_PACKAGE_librt=y" >> features.config
+          fi
+          
+          if [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ]; then
+              echo "CONFIG_PACKAGE_kmod-tun=y" >> features.config
+              echo "CONFIG_PACKAGE_libstdcpp=y" >> features.config
+              echo "CONFIG_PACKAGE_libpthread=y" >> features.config
+              echo "CONFIG_PACKAGE_librt=y" >> features.config
+          fi
+          
+          if [ "${{ steps.set-env.outputs.enable_nikki }}" = "true" ]; then
+              echo "CONFIG_PACKAGE_nikki=y" >> features.config
+              echo "CONFIG_PACKAGE_luci-app-nikki=y" >> features.config
+              echo "CONFIG_PACKAGE_luci-i18n-nikki-zh-cn=y" >> features.config
+              echo "CONFIG_PACKAGE_ca-bundle=y" >> features.config
+              echo "CONFIG_PACKAGE_curl=y" >> features.config
+              echo "CONFIG_PACKAGE_yq=y" >> features.config
+              echo "CONFIG_PACKAGE_firewall4=y" >> features.config
+              echo "CONFIG_PACKAGE_ip-full=y" >> features.config
+              echo "CONFIG_PACKAGE_kmod-inet-diag=y" >> features.config
+              echo "CONFIG_PACKAGE_kmod-nft-socket=y" >> features.config
+              echo "CONFIG_PACKAGE_kmod-nft-tproxy=y" >> features.config
+              echo "CONFIG_PACKAGE_kmod-tun=y" >> features.config
+          fi
+          
+          echo "✅ 插件配置关联完成"
+          cat features.config
+
       - name: 修复依赖和补丁
         run: |
           cd $SOURCE_DIR
@@ -653,23 +693,15 @@ jobs:
             cat "$GITHUB_WORKSPACE/h5000m.extra.config" >> .config
           fi
 
+          # 应用插件配置关联
+          if [ -f "features.config" ]; then
+            echo "📄 应用插件配置关联..."
+            cat features.config >> .config
+          fi
+
           # IP地址修改已在前面的步骤中完成（使用config_generate脚本方法）
 
           # 硬编码指定插件已移至 h5000m.extra.config 文件
-
-          # 添加 EasyTier 和 Bandix 所需的依赖
-          if [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ] || [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ]; then
-            echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
-            echo "CONFIG_PACKAGE_libstdcpp=y" >> .config
-            echo "CONFIG_PACKAGE_libpthread=y" >> .config
-            echo "CONFIG_PACKAGE_librt=y" >> .config
-          fi
-          
-          # 添加 Bandix 所需的时区依赖
-          if [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ]; then
-            echo "CONFIG_PACKAGE_zoneinfo-core=y" >> .config
-            echo "CONFIG_PACKAGE_zoneinfo-all=y" >> .config
-          fi
 
           # 根据输入动态配置包（简化：只启用顶层包，依赖由 make defconfig 自动解析）
           disabled_pkgs=("luci-app-sms-tool-lite" "luci-app-3ginfo-lite")
@@ -1026,6 +1058,45 @@ jobs:
           cd ..
           tar -czf artifacts.tar.gz artifacts/
 
+      - name: 动态生成Release信息
+        run: |
+          cd $SOURCE_DIR
+          echo "🎉 **ImmortalWrt H5000M 固件已构建完成**" > release_body.txt
+          echo "" >> release_body.txt
+          echo "📅 时间: ${{ github.event.repository.updated_at }}" >> release_body.txt
+          echo "🔗 运行 ID: ${{ github.run_id }}" >> release_body.txt
+          echo "" >> release_body.txt
+          echo "**⚙️ 启用的功能:**" >> release_body.txt
+          
+          # 动态生成功能列表
+          [ "${{ needs.prepare.outputs.enable_adguardhome }}" = "true" ] && echo "- AdGuardHome: ${{ needs.prepare.outputs.enable_adguardhome }}" >> release_body.txt
+          [ "${{ needs.prepare.outputs.enable_openclash }}" = "true" ] && echo "- OpenClash: ${{ needs.prepare.outputs.enable_openclash }}" >> release_body.txt
+          [ "${{ needs.prepare.outputs.enable_nikki }}" = "true" ] && echo "- Nikki: ${{ needs.prepare.outputs.enable_nikki }}" >> release_body.txt
+          [ "${{ needs.prepare.outputs.enable_upnp }}" = "true" ] && echo "- UPnP: ${{ needs.prepare.outputs.enable_upnp }}" >> release_body.txt
+          [ "${{ needs.prepare.outputs.enable_vlmcsd }}" = "true" ] && echo "- VLMCSd: ${{ needs.prepare.outputs.enable_vlmcsd }}" >> release_body.txt
+          [ "${{ needs.prepare.outputs.enable_mosdns }}" = "true" ] && echo "- MosDNS: ${{ needs.prepare.outputs.enable_mosdns }}" >> release_body.txt
+          [ "${{ needs.prepare.outputs.enable_dockerman }}" = "true" ] && echo "- DockerMan: ${{ needs.prepare.outputs.enable_dockerman }}" >> release_body.txt
+          [ "${{ needs.prepare.outputs.enable_mwan }}" = "true" ] && echo "- MWAN: ${{ needs.prepare.outputs.enable_mwan }}" >> release_body.txt
+          [ "${{ needs.prepare.outputs.enable_homeproxy }}" = "true" ] && echo "- HomeProxy: ${{ needs.prepare.outputs.enable_homeproxy }}" >> release_body.txt
+          [ "${{ needs.prepare.outputs.enable_adbyby_plus }}" = "true" ] && echo "- Adbyby Plus: ${{ needs.prepare.outputs.enable_adbyby_plus }}" >> release_body.txt
+          [ "${{ needs.prepare.outputs.enable_original_modem }}" = "true" ] && echo "- 原版 Modem: ${{ needs.prepare.outputs.enable_original_modem }}" >> release_body.txt
+          [ "${{ needs.prepare.outputs.enable_netspeedtest }}" = "true" ] && echo "- NetSpeedTest: ${{ needs.prepare.outputs.enable_netspeedtest }}" >> release_body.txt
+          [ "${{ needs.prepare.outputs.enable_at_webserver }}" = "true" ] && echo "- AT WebServer: ${{ needs.prepare.outputs.enable_at_webserver }}" >> release_body.txt
+          [ "${{ needs.prepare.outputs.enable_zerotier }}" = "true" ] && echo "- ZeroTier: ${{ needs.prepare.outputs.enable_zerotier }}" >> release_body.txt
+          [ "${{ needs.prepare.outputs.enable_wrtbwmon }}" = "true" ] && echo "- WRtBWMon: ${{ needs.prepare.outputs.enable_wrtbwmon }}" >> release_body.txt
+          [ "${{ needs.prepare.outputs.enable_watchcat }}" = "true" ] && echo "- WatchCat: ${{ needs.prepare.outputs.enable_watchcat }}" >> release_body.txt
+          [ "${{ needs.prepare.outputs.enable_easytier }}" = "true" ] && echo "- EasyTier: ${{ needs.prepare.outputs.enable_easytier }}" >> release_body.txt
+          [ "${{ needs.prepare.outputs.enable_lucky }}" = "true" ] && echo "- Lucky: ${{ needs.prepare.outputs.enable_lucky }}" >> release_body.txt
+          [ "${{ needs.prepare.outputs.enable_bandix }}" = "true" ] && echo "- Bandix: ${{ needs.prepare.outputs.enable_bandix }}" >> release_body.txt
+          
+          echo "" >> release_body.txt
+          echo "💾 下载产物: 见下方 Artifacts" >> release_body.txt
+          echo "📋 详细信息: 见 MANIFEST.txt" >> release_body.txt
+          
+          # 复制到artifacts目录
+          cp release_body.txt ../artifacts/
+          echo "✅ Release信息生成完成"
+
       - name: 验证产物
         run: |
           echo "🔍 验证产物..."
@@ -1120,35 +1191,7 @@ jobs:
         with:
           tag_name: h5000m-${{ github.run_number }}
           name: ImmortalWrt H5000M
-          body: |
-            🎉 **ImmortalWrt H5000M 固件已构建完成**
-
-            📅 时间: ${{ github.event.repository.updated_at }}
-            🔗 运行 ID: ${{ github.run_id }}
-
-            **⚙️ 启用的功能:**
-            - AdGuardHome: ${{ needs.prepare.outputs.enable_adguardhome }}
-            - OpenClash: ${{ needs.prepare.outputs.enable_openclash }}
-            - Nikki: ${{ needs.prepare.outputs.enable_nikki }}
-            - UPnP: ${{ needs.prepare.outputs.enable_upnp }}
-            - VLMCSd: ${{ needs.prepare.outputs.enable_vlmcsd }}
-            - MosDNS: ${{ needs.prepare.outputs.enable_mosdns }}
-            - DockerMan: ${{ needs.prepare.outputs.enable_dockerman }}
-            - MWAN: ${{ needs.prepare.outputs.enable_mwan }}
-            - HomeProxy: ${{ needs.prepare.outputs.enable_homeproxy }}
-            - Adbyby Plus: ${{ needs.prepare.outputs.enable_adbyby_plus }}
-            - 原版 Modem: ${{ needs.prepare.outputs.enable_original_modem }}
-            - NetSpeedTest: ${{ needs.prepare.outputs.enable_netspeedtest }}
-            - AT WebServer: ${{ needs.prepare.outputs.enable_at_webserver }}
-            - ZeroTier: ${{ needs.prepare.outputs.enable_zerotier }}
-            - WRtBWMon: ${{ needs.prepare.outputs.enable_wrtbwmon }}
-            - WatchCat: ${{ needs.prepare.outputs.enable_watchcat }}
-            - EasyTier: ${{ needs.prepare.outputs.enable_easytier }}
-            - Lucky: ${{ needs.prepare.outputs.enable_lucky }}
-            - Bandix: ${{ needs.prepare.outputs.enable_bandix }}
-
-            💾 下载产物: 见下方 Artifacts
-            📋 详细信息: 见 MANIFEST.txt
+          body_path: artifacts/release_body.txt
           files: artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
