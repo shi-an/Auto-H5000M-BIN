@@ -664,6 +664,12 @@ jobs:
             echo "CONFIG_PACKAGE_libpthread=y" >> .config
             echo "CONFIG_PACKAGE_librt=y" >> .config
           fi
+          
+          # 添加 Bandix 所需的时区依赖
+          if [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ]; then
+            echo "CONFIG_PACKAGE_zoneinfo-core=y" >> .config
+            echo "CONFIG_PACKAGE_zoneinfo-all=y" >> .config
+          fi
 
           # 根据输入动态配置包（简化：只启用顶层包，依赖由 make defconfig 自动解析）
           disabled_pkgs=("luci-app-sms-tool-lite" "luci-app-3ginfo-lite")
