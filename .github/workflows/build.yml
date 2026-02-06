@@ -431,11 +431,11 @@ jobs:
           if [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ]; then
             echo "📥 获取 EasyTier Release URL..."
             # 使用 jq 进行稳健的 JSON 解析
-            # 只选择非 SNAPSHOT 版本的 URL，确保只返回一个结果
-            ET_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/EasyTier/luci-app-easytier/releases/latest | jq -r 'try .assets[] | select(.name | contains("aarch64_cortex-a53") and (contains("SNAPSHOT") | not)).browser_download_url catch ""' | head -1)
-            # 如果没有找到非 SNAPSHOT 版本，则使用第一个匹配的 URL
+            # 只选择包含 aarch64_cortex-a53 和 22.03.7 的非 SNAPSHOT 版本
+            ET_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/EasyTier/luci-app-easytier/releases/latest | jq -r 'try .assets[] | select(.name | contains("aarch64_cortex-a53") and contains("22.03.7") and (contains("SNAPSHOT") | not)).browser_download_url catch ""' | head -1)
+            # 如果没有找到完全匹配的版本，则使用包含 aarch64_cortex-a53 的版本
             if [ -z "$ET_URL" ] || [ "$ET_URL" = "null" ] || [ "$ET_URL" = "" ]; then
-              ET_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/EasyTier/luci-app-easytier/releases/latest | jq -r 'try .assets[] | select(.name | contains("aarch64_cortex-a53")).browser_download_url catch ""' | head -1)
+              ET_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/EasyTier/luci-app-easytier/releases/latest | jq -r 'try .assets[] | select(.name | contains("aarch64_cortex-a53") and (contains("SNAPSHOT") | not)).browser_download_url catch ""' | head -1)
             fi
             if [ -n "$ET_URL" ] && [ "$ET_URL" != "null" ] && [ "$ET_URL" != "" ]; then
               echo "正在下载: $ET_URL"
@@ -465,8 +465,16 @@ jobs:
           if [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ]; then
             echo "📥 获取 Bandix Release URL..."
             # 使用 jq 进行稳健的 JSON 解析
-            BD_CORE_URL=$(curl -s "https://api.github.com/repos/timsaya/openwrt-bandix/releases/latest" | jq -r 'try .assets[] | select(.name | contains("aarch64_cortex-a53") and contains(".ipk")).browser_download_url catch ""' | head -1)
-            BD_LUCI_URLS=$(curl -s "https://api.github.com/repos/timsaya/luci-app-bandix/releases/latest" | jq -r 'try .assets[] | select(.name | contains(".ipk")).browser_download_url catch ""')
+            # 核心包：匹配包含 bandix 和 aarch64_cortex-a53 的 .ipk 文件
+            BD_CORE_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/timsaya/openwrt-bandix/releases/latest | jq -r 'try .assets[] | select(.name | contains("bandix") and contains("aarch64_cortex-a53") and contains(".ipk")).browser_download_url catch ""' | head -1)
+            # 前端包：匹配包含 luci-app-bandix 的 .ipk 文件
+            BD_LUCI_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/timsaya/luci-app-bandix/releases/latest | jq -r 'try .assets[] | select(.name | contains("luci-app-bandix") and contains(".ipk")).browser_download_url catch ""' | head -1)
+            # 语言包：匹配包含 luci-i18n-bandix-zh-cn 的 .ipk 文件
+            BD_I18N_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/timsaya/luci-app-bandix/releases/latest | jq -r 'try .assets[] | select(.name | contains("luci-i18n-bandix-zh-cn") and contains(".ipk")).browser_download_url catch ""' | head -1)
+            # 合并所有 Bandix URL
+            BD_LUCI_URLS=""
+            [ -n "$BD_LUCI_URL" ] && BD_LUCI_URLS="$BD_LUCI_URLS $BD_LUCI_URL"
+            [ -n "$BD_I18N_URL" ] && BD_LUCI_URLS="$BD_LUCI_URLS $BD_I18N_URL"
             
             if [ -n "$BD_CORE_URL" ] && [ "$BD_CORE_URL" != "null" ] && [ "$BD_CORE_URL" != "" ]; then
               echo "正在下载 Bandix 核心: $BD_CORE_URL"
