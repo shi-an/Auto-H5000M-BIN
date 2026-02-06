@@ -385,18 +385,30 @@ jobs:
           if [ "${{ steps.set-env.outputs.enable_netspeedtest }}" = "true" ] && [ ! -d "package/luci-app-netspeedtest" ]; then
             echo "📥 克隆 netspeedtest 仓库..."
             git clone https://github.com/sirpdboy/luci-app-netspeedtest.git -b master package/luci-app-netspeedtest
+            if [ $? -ne 0 ]; then
+              echo "❌ netspeedtest 仓库克隆失败"
+              exit 1
+            fi
           fi
           
           # AT WebServer
           if [ "${{ steps.set-env.outputs.enable_at_webserver }}" = "true" ] && [ ! -d "package/luci-app-at-webserver" ]; then
             echo "📥 克隆 at-webserver 仓库..."
             git clone https://github.com/inotdream/mt5700webui-openwrt-server.git -b main package/luci-app-at-webserver
+            if [ $? -ne 0 ]; then
+              echo "❌ at-webserver 仓库克隆失败"
+              exit 1
+            fi
           fi
           
           # Lucky
           if [ "${{ steps.set-env.outputs.enable_lucky }}" = "true" ] && [ ! -d "package/luci-app-lucky" ]; then
             echo "📥 克隆 lucky 仓库..."
             git clone https://github.com/gdy666/luci-app-lucky.git -b main package/luci-app-lucky
+            if [ $? -ne 0 ]; then
+              echo "❌ lucky 仓库克隆失败"
+              exit 1
+            fi
           fi
 
       - name: 下载 Release 软件包并准备自动安装
