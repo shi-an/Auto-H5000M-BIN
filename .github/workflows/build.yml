@@ -437,12 +437,15 @@ jobs:
                   echo "✅ EasyTier 下载并解压成功"
                 else
                   echo "❌ EasyTier 解压失败"
+                  exit 1
                 fi
               else
                 echo "❌ EasyTier 下载失败"
+                exit 1
               fi
             else
               echo "❌ 无法获取 EasyTier 下载地址，请检查仓库 Release 名称"
+              exit 1
             fi
           fi
 
@@ -462,6 +465,7 @@ jobs:
                 echo "✅ Bandix 核心下载成功"
               else
                 echo "❌ Bandix 核心下载失败"
+                exit 1
               fi
               
               # 下载 LuCI 界面和语言包
@@ -474,12 +478,14 @@ jobs:
                   echo "✅ Bandix LuCI 包下载成功"
                 else
                   echo "❌ Bandix LuCI 包下载失败"
+                  exit 1
                 fi
               else
                 echo "⚠️  无法获取 Bandix LuCI 包地址，跳过下载"
               fi
             else
               echo "❌ 无法获取 Bandix 下载地址，可能是 GitHub API 限制或仓库无发布版本"
+              exit 1
             fi
           fi
 
