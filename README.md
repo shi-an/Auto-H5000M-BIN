@@ -10,7 +10,7 @@
 
 ## 📥 下载固件
 
-前往 [Releases](https://github.com/existyay/Auto-H5000M-BIN/releases) 页面下载最新固件。
+前往 [Releases](https://github.com/shi-an/Auto-H5000M-BIN/releases) 页面下载最新固件。
 
 ---
 
@@ -43,8 +43,9 @@
 - **QModem** - 5G/LTE 模组管理（支持 Quectel、Fibocom 等）
 - **QModem Next** - QModem 新版
 - **HomeProxy** - 现代化多协议代理
-- **OpenClash** - 代理客户端（预安装内核）
+- **OpenClash** - 代理客户端
 - **Nikki** - 透明代理工具
+- **Daed** - 基于 eBPF 的高性能透明代理
 - **MWAN3** - 多 WAN 负载均衡
 - **UPnP** - 自动端口映射
 - **ZeroTier** - 虚拟局域网
@@ -72,7 +73,7 @@
 
 ### 📝 编译说明
 
-- **插件配置记忆**：系统会自动保存您上次选择的插件配置，下次编译时默认使用相同配置
+- **插件配置记忆**：系统会自动保存上次选择的插件配置，下次编译时默认使用相同配置
 - **源码更新检查**：定期检查上游源码仓库的更新，确保固件基于最新源码构建
 - **多工作流支持**：提供多个构建工作流，满足不同的编译需求
 
