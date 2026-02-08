@@ -940,6 +940,31 @@ jobs:
                 echo "🔧 配置 lucky..."
                 echo "CONFIG_PACKAGE_luci-app-lucky=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-lucky-zh-cn=y" >> .config
+              elif [ "$pkg" = "upnp" ]; then
+                echo "🔧 配置 UPnP..."
+                echo "CONFIG_PACKAGE_miniupnpd=y" >> .config
+                echo "CONFIG_PACKAGE_luci-app-upnp=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-upnp-zh-cn=y" >> .config
+              elif [ "$pkg" = "vlmcsd" ]; then
+                echo "🔧 配置 VLMCSd..."
+                echo "CONFIG_PACKAGE_vlmcsd=y" >> .config
+                echo "CONFIG_PACKAGE_luci-app-vlmcsd=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-vlmcsd-zh-cn=y" >> .config
+              elif [ "$pkg" = "dockerman" ]; then
+                echo "🔧 配置 DockerMan..."
+                echo "CONFIG_PACKAGE_docker=y" >> .config
+                echo "CONFIG_PACKAGE_docker-compose=y" >> .config
+                echo "CONFIG_PACKAGE_luci-app-dockerman=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-dockerman-zh-cn=y" >> .config
+              elif [ "$pkg" = "mwan3" ]; then
+                echo "🔧 配置 MWAN..."
+                echo "CONFIG_PACKAGE_mwan3=y" >> .config
+                echo "CONFIG_PACKAGE_luci-app-mwan3=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-mwan3-zh-cn=y" >> .config
+              elif [ "$pkg" = "homeproxy" ]; then
+                echo "🔧 配置 HomeProxy..."
+                echo "CONFIG_PACKAGE_luci-app-homeproxy=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-homeproxy-zh-cn=y" >> .config
               else
                 echo "CONFIG_PACKAGE_luci-app-$pkg=y" >> .config
               fi
@@ -965,6 +990,16 @@ jobs:
                 echo "🔧 跳过禁用 $pkg，因为它通过离线包方式安装"
               elif [ "$pkg" = "lucky" ]; then
                 disabled_pkgs+=('luci-app-lucky')
+              elif [ "$pkg" = "upnp" ]; then
+                disabled_pkgs+=('miniupnpd' 'luci-app-upnp' 'luci-i18n-upnp-zh-cn')
+              elif [ "$pkg" = "vlmcsd" ]; then
+                disabled_pkgs+=('vlmcsd' 'luci-app-vlmcsd' 'luci-i18n-vlmcsd-zh-cn')
+              elif [ "$pkg" = "dockerman" ]; then
+                disabled_pkgs+=('docker' 'docker-compose' 'luci-app-dockerman' 'luci-i18n-dockerman-zh-cn')
+              elif [ "$pkg" = "mwan3" ]; then
+                disabled_pkgs+=('mwan3' 'luci-app-mwan3' 'luci-i18n-mwan3-zh-cn')
+              elif [ "$pkg" = "homeproxy" ]; then
+                disabled_pkgs+=('luci-app-homeproxy' 'luci-i18n-homeproxy-zh-cn')
               else
                 disabled_pkgs+=('luci-app-$pkg')
               fi
@@ -1104,7 +1139,7 @@ jobs:
 
       - name: GitHub Summary 可视化
         run: |
-          echo "## 🚀 功能开启清单" >> $GITHUB_STEP_SUMMARY
+          echo "## ⚙️ 启用的功能:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           # 从 config/plugins.json 读取配置并生成摘要
@@ -1114,7 +1149,7 @@ jobs:
             while read -r key; do
               # 格式化名称：去掉 enable_，下划线转空格，首字母大写
               friendly_name=$(echo "$key" | sed 's/enable_//g' | sed 's/_/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} END {print $0}')
-              echo "- ✅ $friendly_name" >> $GITHUB_STEP_SUMMARY
+              echo "-  $friendly_name" >> $GITHUB_STEP_SUMMARY
             done <<< "$ENABLED_FEATURES"
           else
             echo "- 📦 基础固件（未开启额外插件）" >> $GITHUB_STEP_SUMMARY
@@ -1248,7 +1283,7 @@ jobs:
           echo "📅 时间: $(date '+%Y-%m-%d %H:%M:%S')" >> release_body.txt
           echo "🔗 运行 ID: ${{ github.run_id }}" >> release_body.txt
           echo "" >> release_body.txt
-          echo "## 🚀 功能开启清单" >> release_body.txt
+          echo "## ⚙️ 启用的功能:" >> release_body.txt
           echo "" >> release_body.txt
           
           # 从 config/plugins.json 解析并生成功能开启清单
@@ -1258,7 +1293,7 @@ jobs:
             while read -r key; do
               # 格式化为友好名称
               friendly_name=$(echo "$key" | sed 's/enable_//g' | sed 's/_/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} END {print $0}')
-              echo "- ✅ $friendly_name" >> release_body.txt
+              echo "-  $friendly_name" >> release_body.txt
             done <<< "$ENABLED_FEATURES"
           else
             echo "- 📦 基础固件（未开启额外插件）" >> release_body.txt
@@ -1329,7 +1364,7 @@ jobs:
           echo "📅 时间: $(date '+%Y-%m-%d %H:%M:%S')" >> artifacts/release_body.txt
           echo "🔗 运行 ID: ${{ github.run_id }}" >> artifacts/release_body.txt
           echo "" >> artifacts/release_body.txt
-          echo "## 🚀 功能开启清单" >> artifacts/release_body.txt
+          echo "## ⚙️ 启用的功能:" >> artifacts/release_body.txt
           echo "" >> artifacts/release_body.txt
           
           # 从 config/plugins.json 解析并生成功能开启清单
@@ -1339,7 +1374,7 @@ jobs:
             while read -r key; do
               # 格式化为友好名称
               friendly_name=$(echo "$key" | sed 's/enable_//g' | sed 's/_/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} END {print $0}')
-              echo "- ✅ $friendly_name" >> artifacts/release_body.txt
+              echo "-  $friendly_name" >> artifacts/release_body.txt
             done <<< "$ENABLED_FEATURES"
           else
             echo "- 📦 基础固件（未开启额外插件）" >> artifacts/release_body.txt
@@ -1361,14 +1396,14 @@ jobs:
           EOF
           
           # 从 config/plugins.json 解析并生成功能开启清单到 MANIFEST.txt
-          echo "## 🚀 功能开启清单" >> artifacts/MANIFEST.txt
+          echo "## ⚙️ 启用的功能:" >> artifacts/MANIFEST.txt
           echo "" >> artifacts/MANIFEST.txt
           
           if [ -n "$ENABLED_FEATURES" ]; then
             while read -r key; do
               # 格式化为友好名称
               friendly_name=$(echo "$key" | sed 's/enable_//g' | sed 's/_/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} END {print $0}')
-              echo "- ✅ $friendly_name" >> artifacts/MANIFEST.txt
+              echo "-  $friendly_name" >> artifacts/MANIFEST.txt
             done <<< "$ENABLED_FEATURES"
           else
             echo "- 📦 基础固件（未开启额外插件）" >> artifacts/MANIFEST.txt
