@@ -289,24 +289,6 @@ jobs:
           echo "• Bandix: $ENABLE_BANDIX"
           echo "• Daed: $ENABLE_DAED"
 
-      - name: GitHub Summary 可视化
-        run: |
-          echo "📊 生成 GitHub Actions 运行摘要..."
-          
-          echo "## 🚀 功能开启清单" >> $GITHUB_STEP_SUMMARY
-          ENABLED_FEATURES=$(jq -r 'to_entries[] | select(.value == true or .value == "true") | .key' config/plugins.json)
-          
-          if [ -n "$ENABLED_FEATURES" ]; then
-            while read -r key; do
-              friendly_name=$(echo "$key" | sed 's/enable_//g' | sed 's/_/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} END {print $0}')
-              echo "- ✅ $friendly_name" >> $GITHUB_STEP_SUMMARY
-            done <<< "$ENABLED_FEATURES"
-          else
-            echo "- 📦 基础固件（未开启额外插件）" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          echo "✅ GitHub Summary 生成完成"
-
       - name: 检出代码
         uses: actions/checkout@v4
         with:
@@ -1294,12 +1276,12 @@ jobs:
       - name: 验证产物
         run: |
           echo "🔍 验证产物..."
-          if [ -z "$(ls -A ../artifacts/ 2>/dev/null)" ]; then
+          if [ -z "$(ls -A artifacts/ 2>/dev/null)" ]; then
             echo "❌ 没有找到产物文件"
             exit 1
           else
             echo "✅ 产物验证通过"
-            ls -lh ../artifacts/
+            ls -lh artifacts/
           fi
 
       - name: 上传产物
