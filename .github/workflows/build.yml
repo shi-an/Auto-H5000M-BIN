@@ -873,7 +873,18 @@ jobs:
           cat base.config > .config
 
           echo "🔧 基于 plugins.json 循环生成 .config..."
-          TRUE_KEYS=$(jq -r 'to_entries[] | select(.key | startswith("enable_") and .value == true) | .key' "$CFG")
+          # 使用 Python 解析 JSON 以避免 jq 兼容性问题
+          TRUE_KEYS=$(python3 -c 'import json, os, sys; 
+          try:
+            with open(os.environ["CFG"]) as f:
+              data = json.load(f)
+              keys = [k for k, v in data.items() if k.startswith("enable_") and (v is True or str(v).lower() == "true")]
+              print(" ".join(keys))
+          except Exception as e:
+            print(f"JSON Parse Error: {e}", file=sys.stderr)
+            sys.exit(1)
+          ')
+          
           for key in $TRUE_KEYS; do
             name="${key#enable_}"
             case "$name" in
