@@ -879,7 +879,16 @@ jobs:
           # 使用 Python 解析 JSON 以避免 jq 兼容性问题
           TRUE_KEYS=$(python3 -c 'import json, os, sys; 
           try:
-            with open(os.environ["CFG"]) as f:
+            cfg_path = os.environ.get("CFG")
+            if not cfg_path or not os.path.exists(cfg_path):
+                # 如果 CFG 环境变量不存在或文件不存在，尝试默认路径
+                cfg_path = os.path.join(os.environ.get("GITHUB_WORKSPACE"), "config/plugins.json")
+            
+            if not os.path.exists(cfg_path):
+                print(f"Error: Config file not found at {cfg_path}", file=sys.stderr)
+                sys.exit(1)
+
+            with open(cfg_path) as f:
               data = json.load(f)
               keys = [k for k, v in data.items() if k.startswith("enable_") and (v is True or str(v).lower() == "true")]
               print(" ".join(keys))
