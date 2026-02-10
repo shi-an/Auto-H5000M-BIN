@@ -206,54 +206,47 @@ jobs:
           else
             if [ -f "config/plugins.json" ]; then
               echo "📂 自动触发，发现缓存配置，读取 config/plugins.json"
-              ENABLE_ADGUARDHOME=$(jq -r '.enable_adguardhome // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_OPENCLASH=$(jq -r '.enable_openclash // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_NIKKI=$(jq -r '.enable_nikki // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_UPNP=$(jq -r '.enable_upnp // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_VLMCSD=$(jq -r '.enable_vlmcsd // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_MOSDNS=$(jq -r '.enable_mosdns // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_DOCKERMAN=$(jq -r '.enable_dockerman // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_QMODEM_NEXT=$(jq -r '.enable_qmodem_next // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_QMODEM=$(jq -r '.enable_qmodem // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_MWAN=$(jq -r '.enable_mwan // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_HOMEPROXY=$(jq -r '.enable_homeproxy // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_ADBYBY_PLUS=$(jq -r '.enable_adbyby_plus // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_ORIGINAL_MODEM=$(jq -r '.enable_original_modem // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_NETSPEEDTEST=$(jq -r '.enable_netspeedtest // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_AT_WEBSERVER=$(jq -r '.enable_at_webserver // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_ZEROTIER=$(jq -r '.enable_zerotier // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_WRTBWMON=$(jq -r '.enable_wrtbwmon // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_WATCHCAT=$(jq -r '.enable_watchcat // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_EASYTIER=$(jq -r '.enable_easytier // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_LUCKY=$(jq -r '.enable_lucky // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_BANDIX=$(jq -r '.enable_bandix // false' config/plugins.json 2>/dev/null || echo 'false')
-              ENABLE_DAED=$(jq -r '.enable_daed // false' config/plugins.json 2>/dev/null || echo 'false')
+              # 使用 Python 解析 JSON 以避免 jq 兼容性问题
+              eval $(python3 -c 'import json, os
+              try:
+                  with open("config/plugins.json") as f:
+                      data = json.load(f)
+                      for k, v in data.items():
+                          if k.startswith("enable_"):
+                              val = "true" if (v is True or str(v).lower() == "true") else "false"
+                              print(f"{k.upper()}={val}")
+              except Exception:
+                  pass
+              ')
             else
               echo "🔄 自动触发且无缓存，使用默认空配置"
-              ENABLE_ADGUARDHOME="false"
-              ENABLE_OPENCLASH="false"
-              ENABLE_NIKKI="false"
-              ENABLE_UPNP="false"
-              ENABLE_VLMCSD="false"
-              ENABLE_MOSDNS="false"
-              ENABLE_DOCKERMAN="false"
-              ENABLE_QMODEM_NEXT="false"
-              ENABLE_QMODEM="false"
-              ENABLE_MWAN="false"
-              ENABLE_HOMEPROXY="false"
-              ENABLE_ADBYBY_PLUS="false"
-              ENABLE_ORIGINAL_MODEM="false"
-              ENABLE_NETSPEEDTEST="false"
-              ENABLE_AT_WEBSERVER="false"
-              ENABLE_ZEROTIER="false"
-              ENABLE_WRTBWMON="false"
-              ENABLE_WATCHCAT="false"
-              ENABLE_EASYTIER="false"
-              ENABLE_LUCKY="false"
-              ENABLE_BANDIX="false"
-              ENABLE_DAED="false"
+              # 默认全为 false，无需额外操作，下方变量未定义时默认为空（或需显式设为 false）
             fi
           fi
+          
+          # 确保所有变量都有值（默认为 false）
+          : ${ENABLE_ADGUARDHOME:=false}
+          : ${ENABLE_OPENCLASH:=false}
+          : ${ENABLE_NIKKI:=false}
+          : ${ENABLE_UPNP:=false}
+          : ${ENABLE_VLMCSD:=false}
+          : ${ENABLE_MOSDNS:=false}
+          : ${ENABLE_DOCKERMAN:=false}
+          : ${ENABLE_QMODEM_NEXT:=false}
+          : ${ENABLE_QMODEM:=false}
+          : ${ENABLE_MWAN:=false}
+          : ${ENABLE_HOMEPROXY:=false}
+          : ${ENABLE_ADBYBY_PLUS:=false}
+          : ${ENABLE_ORIGINAL_MODEM:=false}
+          : ${ENABLE_NETSPEEDTEST:=false}
+          : ${ENABLE_AT_WEBSERVER:=false}
+          : ${ENABLE_ZEROTIER:=false}
+          : ${ENABLE_WRTBWMON:=false}
+          : ${ENABLE_WATCHCAT:=false}
+          : ${ENABLE_EASYTIER:=false}
+          : ${ENABLE_LUCKY:=false}
+          : ${ENABLE_BANDIX:=false}
+          : ${ENABLE_DAED:=false}
           
           # 输出配置
           echo "enable_adguardhome=$ENABLE_ADGUARDHOME" >> $GITHUB_OUTPUT
@@ -429,17 +422,20 @@ jobs:
           fi
 
           # 动态管理 feeds.conf.default (必须在清理和更新之前完成)
-          NIKKI_ENABLED=$(jq -r '.enable_nikki // false' "$GITHUB_WORKSPACE/config/plugins.json")
-          if [ "$NIKKI_ENABLED" != "true" ]; then
+          # 使用 Python 解析避免 jq 问题
+          NIKKI_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_nikki", False))' 2>/dev/null || echo 'False')
+          if [ "$NIKKI_ENABLED" != "True" ] && [ "$NIKKI_ENABLED" != "true" ]; then
             echo "🔧 禁用 nikki feed..."
             sed -i '/src-git nikki/d' feeds.conf.default
             sed -i '/nikki/d' feeds.conf.default
           fi
 
           # QModem feed
-          QN_ENABLED=$(jq -r '.enable_qmodem_next // false' "$GITHUB_WORKSPACE/config/plugins.json")
-          Q_ENABLED=$(jq -r '.enable_qmodem // false' "$GITHUB_WORKSPACE/config/plugins.json")
-          if [ "$QN_ENABLED" != "true" ] && [ "$Q_ENABLED" != "true" ]; then
+          QN_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_qmodem_next", False))' 2>/dev/null || echo 'False')
+          Q_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_qmodem", False))' 2>/dev/null || echo 'False')
+          
+          # 归一化判断
+          if [[ "$QN_ENABLED" != "True" && "$QN_ENABLED" != "true" ]] && [[ "$Q_ENABLED" != "True" && "$Q_ENABLED" != "true" ]]; then
             echo "🔧 禁用 qmodem feed..."
             sed -i '/qmodem/d' feeds.conf.default
           fi
@@ -471,7 +467,8 @@ jobs:
           echo "📥 克隆第三方仓库..."
           
           # NetSpeedTest
-          if [ "$(jq -r '.enable_netspeedtest // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ] && [ ! -d "package/luci-app-netspeedtest" ]; then
+          NST_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_netspeedtest", False))' 2>/dev/null || echo 'False')
+          if [[ "$NST_ENABLED" == "True" || "$NST_ENABLED" == "true" ]] && [ ! -d "package/luci-app-netspeedtest" ]; then
             echo "📥 克隆 netspeedtest 仓库..."
             git clone https://github.com/sirpdboy/luci-app-netspeedtest.git -b master package/luci-app-netspeedtest
             if [ $? -ne 0 ]; then
@@ -481,7 +478,8 @@ jobs:
           fi
           
           # AT WebServer
-          if [ "$(jq -r '.enable_at_webserver // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ] && [ ! -d "package/luci-app-at-webserver" ]; then
+          AT_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_at_webserver", False))' 2>/dev/null || echo 'False')
+          if [[ "$AT_ENABLED" == "True" || "$AT_ENABLED" == "true" ]] && [ ! -d "package/luci-app-at-webserver" ]; then
             echo "📥 克隆 at-webserver 仓库..."
             git clone https://github.com/inotdream/mt5700webui-openwrt-server.git -b main package/luci-app-at-webserver
             if [ $? -ne 0 ]; then
@@ -491,7 +489,8 @@ jobs:
           fi
           
           # Lucky
-          if [ "$(jq -r '.enable_lucky // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ] && [ ! -d "package/luci-app-lucky" ]; then
+          LUCKY_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_lucky", False))' 2>/dev/null || echo 'False')
+          if [[ "$LUCKY_ENABLED" == "True" || "$LUCKY_ENABLED" == "true" ]] && [ ! -d "package/luci-app-lucky" ]; then
             echo "📥 克隆 lucky 仓库..."
             git clone https://github.com/gdy666/luci-app-lucky.git -b main package/luci-app-lucky
             if [ $? -ne 0 ]; then
@@ -501,7 +500,8 @@ jobs:
           fi
           
           # Daed
-          if [ "$(jq -r '.enable_daed // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ] && [ ! -d "package/dae" ]; then
+          DAED_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_daed", False))' 2>/dev/null || echo 'False')
+          if [[ "$DAED_ENABLED" == "True" || "$DAED_ENABLED" == "true" ]] && [ ! -d "package/dae" ]; then
             echo "📥 克隆 daed 仓库..."
             git clone https://github.com/QiuSimons/luci-app-daed.git package/dae
             if [ $? -ne 0 ]; then
@@ -529,7 +529,8 @@ jobs:
           echo "✅ files 目录结构标准化完成"
 
           # --- 下载 EasyTier ---
-          if [ "$(jq -r '.enable_easytier // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ]; then
+          ET_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_easytier", False))' 2>/dev/null || echo 'False')
+          if [[ "$ET_ENABLED" == "True" || "$ET_ENABLED" == "true" ]]; then
             echo "📥 获取 EasyTier Release URL..."
             # 使用 jq 进行稳健的 JSON 解析
             # 只选择包含 aarch64_cortex-a53 和 22.03.7 的非 SNAPSHOT 版本
@@ -744,7 +745,8 @@ jobs:
           fi
           
           # 下载额外包
-          if [ "$(jq -r '.enable_adguardhome // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ]; then
+          AGH_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_adguardhome", False))' 2>/dev/null || echo 'False')
+          if [[ "$AGH_ENABLED" == "True" || "$AGH_ENABLED" == "true" ]]; then
             [ ! -d "package/luci-app-adguardhome" ] && \
               git clone --depth=1 https://github.com/kongfl888/luci-app-adguardhome.git package/luci-app-adguardhome
             
@@ -761,7 +763,8 @@ jobs:
           fi
 
           # Adbyby Plus Lite 安装 (仓库结构: luci-app-adbyby-plus 子目录)
-          if [ "$(jq -r '.enable_adbyby_plus // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ]; then
+          ADBYBY_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_adbyby_plus", False))' 2>/dev/null || echo 'False')
+          if [[ "$ADBYBY_ENABLED" == "True" || "$ADBYBY_ENABLED" == "true" ]]; then
             echo "🔧 安装 Adbyby Plus Lite..."
             if [ ! -d "package/luci-app-adbyby-plus" ]; then
               git clone --depth=1 --recurse-submodules https://github.com/kongfl888/luci-app-adbyby-plus-lite.git /tmp/adbyby-plus-lite
