@@ -158,6 +158,11 @@ jobs:
       enable_bandix: ${{ steps.set-env.outputs.enable_bandix }}
       enable_daed: ${{ steps.set-env.outputs.enable_daed }}
     steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
       - name: 恢复插件配置缓存
         id: restore-config
         uses: actions/cache/restore@v4
@@ -336,11 +341,6 @@ jobs:
             )' > config/plugins.json
           echo "✅ plugins.json 已生成"
           cat config/plugins.json
-
-      - name: 检出代码
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
       - name: 环境准备和缓存设置
         run: |
