@@ -384,6 +384,10 @@ jobs:
 
       - name: 源码和依赖准备
         run: |
+          # 调试：检查 config 目录
+          echo "🔍 调试：检查 config 目录"
+          ls -R "$GITHUB_WORKSPACE/config" || echo "config 目录不存在"
+
           # 检查并准备源码
           if [ ! -d "$SOURCE_DIR" ] || [ ! -d "$SOURCE_DIR/.git" ]; then
             echo "📥 克隆源码..."
