@@ -337,7 +337,13 @@ jobs:
           )
           echo "$CURRENT_JSON" | jq '
             with_entries(select(.key | startswith("enable_"))
-            | .value = (if (.value|type)=="string" then (.value=="true") else .value end)
+            | .value = (
+                if (.value|type)=="string" then 
+                  (.value | ascii_downcase == "true")
+                else 
+                  .value 
+                end
+              )
             )' > config/plugins.json
           echo "✅ plugins.json 已生成"
           cat config/plugins.json
@@ -867,7 +873,7 @@ jobs:
           cat base.config > .config
 
           echo "🔧 基于 plugins.json 循环生成 .config..."
-          TRUE_KEYS=$(jq -r 'to_entries | map(select(.key|startswith("enable_") and .value==true)) | .[].key' "$CFG")
+          TRUE_KEYS=$(jq -r 'to_entries[] | select(.key | startswith("enable_") and .value == true) | .key' "$CFG")
           for key in $TRUE_KEYS; do
             name="${key#enable_}"
             case "$name" in
