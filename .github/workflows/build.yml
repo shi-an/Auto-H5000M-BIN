@@ -159,46 +159,23 @@ jobs:
       enable_daed: ${{ steps.set-env.outputs.enable_daed }}
     steps:
       - name: 恢复插件配置缓存
-        uses: actions/cache@v4
         id: restore-config
+        uses: actions/cache/restore@v4
         with:
           path: config/plugins.json
-          key: plugins-config-
+          key: plugins-config-latest
+          restore-keys: |
+            plugins-config-
 
       - name: 设置环境变量
         id: set-env
         run: |
           echo "🔧 设置环境变量..."
           
-          # 检查是否有缓存的配置
-          if [ -f "config/plugins.json" ]; then
-            echo "📂 发现缓存的插件配置，使用缓存配置..."
-            # 从缓存的配置文件中读取
-            ENABLE_ADGUARDHOME=$(jq -r '.enable_adguardhome' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_OPENCLASH=$(jq -r '.enable_openclash' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_NIKKI=$(jq -r '.enable_nikki' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_UPNP=$(jq -r '.enable_upnp' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_VLMCSD=$(jq -r '.enable_vlmcsd' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_MOSDNS=$(jq -r '.enable_mosdns' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_DOCKERMAN=$(jq -r '.enable_dockerman' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_QMODEM_NEXT=$(jq -r '.enable_qmodem_next' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_QMODEM=$(jq -r '.enable_qmodem' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_MWAN=$(jq -r '.enable_mwan' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_HOMEPROXY=$(jq -r '.enable_homeproxy' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_ADBYBY_PLUS=$(jq -r '.enable_adbyby_plus' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_ORIGINAL_MODEM=$(jq -r '.enable_original_modem' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_NETSPEEDTEST=$(jq -r '.enable_netspeedtest' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_AT_WEBSERVER=$(jq -r '.enable_at_webserver' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_ZEROTIER=$(jq -r '.enable_zerotier' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_WRTBWMON=$(jq -r '.enable_wrtbwmon' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_WATCHCAT=$(jq -r '.enable_watchcat' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_EASYTIER=$(jq -r '.enable_easytier' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_LUCKY=$(jq -r '.enable_lucky' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_BANDIX=$(jq -r '.enable_bandix' config/plugins.json 2>/dev/null || echo 'false')
-            ENABLE_DAED=$(jq -r '.enable_daed' config/plugins.json 2>/dev/null || echo 'false')
-          else
-            echo "🔄 无缓存配置，使用默认值..."
-            # 从 workflow_dispatch inputs 读取配置，如果没有则使用默认值
+          mkdir -p config
+          EVENT_NAME="${{ github.event_name }}"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "🧭 手动触发，优先使用 UI 传入的 inputs"
             ENABLE_ADGUARDHOME="${{ github.event.inputs.enable_adguardhome || 'false' }}"
             ENABLE_OPENCLASH="${{ github.event.inputs.enable_openclash || 'false' }}"
             ENABLE_NIKKI="${{ github.event.inputs.enable_nikki || 'false' }}"
@@ -221,6 +198,56 @@ jobs:
             ENABLE_LUCKY="${{ github.event.inputs.enable_lucky || 'false' }}"
             ENABLE_BANDIX="${{ github.event.inputs.enable_bandix || 'false' }}"
             ENABLE_DAED="${{ github.event.inputs.enable_daed || 'false' }}"
+          else
+            if [ -f "config/plugins.json" ]; then
+              echo "📂 自动触发，发现缓存配置，读取 config/plugins.json"
+              ENABLE_ADGUARDHOME=$(jq -r '.enable_adguardhome // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_OPENCLASH=$(jq -r '.enable_openclash // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_NIKKI=$(jq -r '.enable_nikki // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_UPNP=$(jq -r '.enable_upnp // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_VLMCSD=$(jq -r '.enable_vlmcsd // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_MOSDNS=$(jq -r '.enable_mosdns // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_DOCKERMAN=$(jq -r '.enable_dockerman // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_QMODEM_NEXT=$(jq -r '.enable_qmodem_next // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_QMODEM=$(jq -r '.enable_qmodem // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_MWAN=$(jq -r '.enable_mwan // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_HOMEPROXY=$(jq -r '.enable_homeproxy // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_ADBYBY_PLUS=$(jq -r '.enable_adbyby_plus // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_ORIGINAL_MODEM=$(jq -r '.enable_original_modem // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_NETSPEEDTEST=$(jq -r '.enable_netspeedtest // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_AT_WEBSERVER=$(jq -r '.enable_at_webserver // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_ZEROTIER=$(jq -r '.enable_zerotier // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_WRTBWMON=$(jq -r '.enable_wrtbwmon // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_WATCHCAT=$(jq -r '.enable_watchcat // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_EASYTIER=$(jq -r '.enable_easytier // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_LUCKY=$(jq -r '.enable_lucky // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_BANDIX=$(jq -r '.enable_bandix // false' config/plugins.json 2>/dev/null || echo 'false')
+              ENABLE_DAED=$(jq -r '.enable_daed // false' config/plugins.json 2>/dev/null || echo 'false')
+            else
+              echo "🔄 自动触发且无缓存，使用默认空配置"
+              ENABLE_ADGUARDHOME="false"
+              ENABLE_OPENCLASH="false"
+              ENABLE_NIKKI="false"
+              ENABLE_UPNP="false"
+              ENABLE_VLMCSD="false"
+              ENABLE_MOSDNS="false"
+              ENABLE_DOCKERMAN="false"
+              ENABLE_QMODEM_NEXT="false"
+              ENABLE_QMODEM="false"
+              ENABLE_MWAN="false"
+              ENABLE_HOMEPROXY="false"
+              ENABLE_ADBYBY_PLUS="false"
+              ENABLE_ORIGINAL_MODEM="false"
+              ENABLE_NETSPEEDTEST="false"
+              ENABLE_AT_WEBSERVER="false"
+              ENABLE_ZEROTIER="false"
+              ENABLE_WRTBWMON="false"
+              ENABLE_WATCHCAT="false"
+              ENABLE_EASYTIER="false"
+              ENABLE_LUCKY="false"
+              ENABLE_BANDIX="false"
+              ENABLE_DAED="false"
+            fi
           fi
           
           # 输出配置
@@ -271,6 +298,44 @@ jobs:
           echo "• Lucky: $ENABLE_LUCKY"
           echo "• Bandix: $ENABLE_BANDIX"
           echo "• Daed: $ENABLE_DAED"
+
+      - name: 生成标准数据源 plugins.json
+        run: |
+          mkdir -p config
+          echo "🧾 生成标准 plugins.json (SSOT)"
+          CURRENT_JSON=$(cat << 'EOF'
+          {
+            "enable_adguardhome": "${{ steps.set-env.outputs.enable_adguardhome }}",
+            "enable_openclash": "${{ steps.set-env.outputs.enable_openclash }}",
+            "enable_nikki": "${{ steps.set-env.outputs.enable_nikki }}",
+            "enable_upnp": "${{ steps.set-env.outputs.enable_upnp }}",
+            "enable_vlmcsd": "${{ steps.set-env.outputs.enable_vlmcsd }}",
+            "enable_mosdns": "${{ steps.set-env.outputs.enable_mosdns }}",
+            "enable_dockerman": "${{ steps.set-env.outputs.enable_dockerman }}",
+            "enable_qmodem_next": "${{ steps.set-env.outputs.enable_qmodem_next }}",
+            "enable_qmodem": "${{ steps.set-env.outputs.enable_qmodem }}",
+            "enable_mwan": "${{ steps.set-env.outputs.enable_mwan }}",
+            "enable_homeproxy": "${{ steps.set-env.outputs.enable_homeproxy }}",
+            "enable_adbyby_plus": "${{ steps.set-env.outputs.enable_adbyby_plus }}",
+            "enable_original_modem": "${{ steps.set-env.outputs.enable_original_modem }}",
+            "enable_netspeedtest": "${{ steps.set-env.outputs.enable_netspeedtest }}",
+            "enable_at_webserver": "${{ steps.set-env.outputs.enable_at_webserver }}",
+            "enable_zerotier": "${{ steps.set-env.outputs.enable_zerotier }}",
+            "enable_wrtbwmon": "${{ steps.set-env.outputs.enable_wrtbwmon }}",
+            "enable_watchcat": "${{ steps.set-env.outputs.enable_watchcat }}",
+            "enable_easytier": "${{ steps.set-env.outputs.enable_easytier }}",
+            "enable_lucky": "${{ steps.set-env.outputs.enable_lucky }}",
+            "enable_bandix": "${{ steps.set-env.outputs.enable_bandix }}",
+            "enable_daed": "${{ steps.set-env.outputs.enable_daed }}"
+          }
+          EOF
+          )
+          echo "$CURRENT_JSON" | jq '
+            with_entries(select(.key | startswith("enable_"))
+            | .value = (if (.value|type)=="string" then (.value=="true") else .value end)
+            )' > config/plugins.json
+          echo "✅ plugins.json 已生成"
+          cat config/plugins.json
 
       - name: 检出代码
         uses: actions/checkout@v4
@@ -354,14 +419,17 @@ jobs:
           fi
 
           # 动态管理 feeds.conf.default (必须在清理和更新之前完成)
-          if [ "${{ steps.set-env.outputs.enable_nikki }}" != "true" ]; then
+          NIKKI_ENABLED=$(jq -r '.enable_nikki // false' "$GITHUB_WORKSPACE/config/plugins.json")
+          if [ "$NIKKI_ENABLED" != "true" ]; then
             echo "🔧 禁用 nikki feed..."
             sed -i '/src-git nikki/d' feeds.conf.default
             sed -i '/nikki/d' feeds.conf.default
           fi
 
           # QModem feed
-          if [ "${{ steps.set-env.outputs.enable_qmodem_next }}" != "true" ] && [ "${{ steps.set-env.outputs.enable_qmodem }}" != "true" ]; then
+          QN_ENABLED=$(jq -r '.enable_qmodem_next // false' "$GITHUB_WORKSPACE/config/plugins.json")
+          Q_ENABLED=$(jq -r '.enable_qmodem // false' "$GITHUB_WORKSPACE/config/plugins.json")
+          if [ "$QN_ENABLED" != "true" ] && [ "$Q_ENABLED" != "true" ]; then
             echo "🔧 禁用 qmodem feed..."
             sed -i '/qmodem/d' feeds.conf.default
           fi
@@ -377,8 +445,8 @@ jobs:
           rm -rf tmp/.config* tmp/.packageinfo tmp/.targetinfo tmp/info tmp/.feeds* 2>/dev/null || true
           
           # 清理禁用的 feeds
-          [ "${{ steps.set-env.outputs.enable_nikki }}" != "true" ] && rm -rf feeds/nikki* package/feeds/nikki 2>/dev/null || true
-          [ "${{ steps.set-env.outputs.enable_qmodem_next }}" != "true" ] && [ "${{ steps.set-env.outputs.enable_qmodem }}" != "true" ] && rm -rf feeds/qmodem* package/feeds/qmodem 2>/dev/null || true
+          [ "$NIKKI_ENABLED" != "true" ] && rm -rf feeds/nikki* package/feeds/nikki 2>/dev/null || true
+          [ "$QN_ENABLED" != "true" ] && [ "$Q_ENABLED" != "true" ] && rm -rf feeds/qmodem* package/feeds/qmodem 2>/dev/null || true
 
           # feeds update/install
           echo "🔄 更新 feeds..."
@@ -393,7 +461,7 @@ jobs:
           echo "📥 克隆第三方仓库..."
           
           # NetSpeedTest
-          if [ "${{ steps.set-env.outputs.enable_netspeedtest }}" = "true" ] && [ ! -d "package/luci-app-netspeedtest" ]; then
+          if [ "$(jq -r '.enable_netspeedtest // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ] && [ ! -d "package/luci-app-netspeedtest" ]; then
             echo "📥 克隆 netspeedtest 仓库..."
             git clone https://github.com/sirpdboy/luci-app-netspeedtest.git -b master package/luci-app-netspeedtest
             if [ $? -ne 0 ]; then
@@ -403,7 +471,7 @@ jobs:
           fi
           
           # AT WebServer
-          if [ "${{ steps.set-env.outputs.enable_at_webserver }}" = "true" ] && [ ! -d "package/luci-app-at-webserver" ]; then
+          if [ "$(jq -r '.enable_at_webserver // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ] && [ ! -d "package/luci-app-at-webserver" ]; then
             echo "📥 克隆 at-webserver 仓库..."
             git clone https://github.com/inotdream/mt5700webui-openwrt-server.git -b main package/luci-app-at-webserver
             if [ $? -ne 0 ]; then
@@ -413,7 +481,7 @@ jobs:
           fi
           
           # Lucky
-          if [ "${{ steps.set-env.outputs.enable_lucky }}" = "true" ] && [ ! -d "package/luci-app-lucky" ]; then
+          if [ "$(jq -r '.enable_lucky // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ] && [ ! -d "package/luci-app-lucky" ]; then
             echo "📥 克隆 lucky 仓库..."
             git clone https://github.com/gdy666/luci-app-lucky.git -b main package/luci-app-lucky
             if [ $? -ne 0 ]; then
@@ -423,7 +491,7 @@ jobs:
           fi
           
           # Daed
-          if [ "${{ steps.set-env.outputs.enable_daed }}" = "true" ] && [ ! -d "package/dae" ]; then
+          if [ "$(jq -r '.enable_daed // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ] && [ ! -d "package/dae" ]; then
             echo "📥 克隆 daed 仓库..."
             git clone https://github.com/QiuSimons/luci-app-daed.git package/dae
             if [ $? -ne 0 ]; then
@@ -451,7 +519,7 @@ jobs:
           echo "✅ files 目录结构标准化完成"
 
           # --- 下载 EasyTier ---
-          if [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ]; then
+          if [ "$(jq -r '.enable_easytier // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ]; then
             echo "📥 获取 EasyTier Release URL..."
             # 使用 jq 进行稳健的 JSON 解析
             # 只选择包含 aarch64_cortex-a53 和 22.03.7 的非 SNAPSHOT 版本
@@ -485,7 +553,7 @@ jobs:
           fi
 
           # --- 下载 Bandix ---
-          if [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ]; then
+          if [ "$(jq -r '.enable_bandix // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ]; then
             echo "📥 获取 Bandix Release URL..."
             # 使用 jq 进行稳健的 JSON 解析
             # 核心包：匹配包含 bandix 和 aarch64_cortex-a53 的 .ipk 文件
@@ -553,7 +621,7 @@ jobs:
           touch features.config
           
           # 逻辑统一：开启插件时，强制关联开启依赖
-          if [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ]; then
+          if [ "$(jq -r '.enable_bandix // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ]; then
               echo "CONFIG_PACKAGE_zoneinfo-all=y" >> features.config
               echo "CONFIG_PACKAGE_zoneinfo-core=y" >> features.config
               echo "CONFIG_PACKAGE_kmod-tun=y" >> features.config
@@ -562,14 +630,14 @@ jobs:
               echo "CONFIG_PACKAGE_librt=y" >> features.config
           fi
           
-          if [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ]; then
+          if [ "$(jq -r '.enable_easytier // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ]; then
               echo "CONFIG_PACKAGE_kmod-tun=y" >> features.config
               echo "CONFIG_PACKAGE_libstdcpp=y" >> features.config
               echo "CONFIG_PACKAGE_libpthread=y" >> features.config
               echo "CONFIG_PACKAGE_librt=y" >> features.config
           fi
           
-          if [ "${{ steps.set-env.outputs.enable_daed }}" = "true" ]; then
+          if [ "$(jq -r '.enable_daed // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ]; then
               # 软件包配置
               echo "CONFIG_PACKAGE_luci-app-daed=y" >> features.config
               echo "CONFIG_PACKAGE_luci-i18n-daed-zh-cn=y" >> features.config
@@ -586,7 +654,7 @@ jobs:
               echo "CONFIG_PACKAGE_kmod-xdp-sockets-diag=y" >> features.config
           fi
           
-          if [ "${{ steps.set-env.outputs.enable_nikki }}" = "true" ]; then
+          if [ "$(jq -r '.enable_nikki // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ]; then
               echo "CONFIG_PACKAGE_nikki=y" >> features.config
               echo "CONFIG_PACKAGE_luci-app-nikki=y" >> features.config
               echo "CONFIG_PACKAGE_luci-i18n-nikki-zh-cn=y" >> features.config
@@ -666,7 +734,7 @@ jobs:
           fi
           
           # 下载额外包
-          if [ "${{ steps.set-env.outputs.enable_adguardhome }}" = "true" ]; then
+          if [ "$(jq -r '.enable_adguardhome // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ]; then
             [ ! -d "package/luci-app-adguardhome" ] && \
               git clone --depth=1 https://github.com/kongfl888/luci-app-adguardhome.git package/luci-app-adguardhome
             
@@ -683,7 +751,7 @@ jobs:
           fi
 
           # Adbyby Plus Lite 安装 (仓库结构: luci-app-adbyby-plus 子目录)
-          if [ "${{ steps.set-env.outputs.enable_adbyby_plus }}" = "true" ]; then
+          if [ "$(jq -r '.enable_adbyby_plus // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ]; then
             echo "🔧 安装 Adbyby Plus Lite..."
             if [ ! -d "package/luci-app-adbyby-plus" ]; then
               git clone --depth=1 --recurse-submodules https://github.com/kongfl888/luci-app-adbyby-plus-lite.git /tmp/adbyby-plus-lite
@@ -696,7 +764,7 @@ jobs:
           fi
 
           # MosDNS 安装步骤
-          if [ "${{ steps.set-env.outputs.enable_mosdns }}" = "true" ]; then
+          if [ "$(jq -r '.enable_mosdns // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ]; then
             if [ ! -d "feeds/packages/lang/golang" ] || [ ! -f "feeds/packages/lang/golang/Makefile" ]; then
               rm -rf feeds/packages/lang/golang
               git clone https://github.com/sbwml/packages_lang_golang -b 24.x feeds/packages/lang/golang
@@ -727,7 +795,7 @@ jobs:
           # 预装 Clash 内核
           echo "🔧 预装 Clash 内核..."
           # 检查是否启用了 OpenClash
-          if [ "${{ steps.set-env.outputs.enable_openclash }}" = "true" ]; then
+          if [ "$(jq -r '.enable_openclash // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ]; then
             echo "📦 安装 OpenClash 依赖..."
             # 确保 OpenClash 目录存在
             mkdir -p feeds/luci/applications/luci-app-openclash/root/etc/openclash/core
@@ -769,16 +837,20 @@ jobs:
           cd $SOURCE_DIR
           echo "⚙️ 配置构建选项..."
 
-          # 验证互斥选项
-          if [ "${{ steps.set-env.outputs.enable_qmodem_next }}" = "true" ] && [ "${{ steps.set-env.outputs.enable_qmodem }}" = "true" ]; then
+          # 从 plugins.json 读取开关并验证互斥
+          CFG="$GITHUB_WORKSPACE/config/plugins.json"
+          EN_QN=$(jq -r '.enable_qmodem_next // false' "$CFG")
+          EN_Q=$(jq -r '.enable_qmodem // false' "$CFG")
+          EN_OM=$(jq -r '.enable_original_modem // false' "$CFG")
+          if [ "$EN_QN" = "true" ] && [ "$EN_Q" = "true" ]; then
             echo "❌ 错误: 不能同时启用 QModem Next 和 QModem！"
             exit 1
           fi
-          if [ "${{ steps.set-env.outputs.enable_original_modem }}" = "true" ] && [ "${{ steps.set-env.outputs.enable_qmodem_next }}" = "true" ]; then
+          if [ "$EN_OM" = "true" ] && [ "$EN_QN" = "true" ]; then
             echo "❌ 错误: 不能同时启用原版 Modem 和 QModem Next！"
             exit 1
           fi
-          if [ "${{ steps.set-env.outputs.enable_original_modem }}" = "true" ] && [ "${{ steps.set-env.outputs.enable_qmodem }}" = "true" ]; then
+          if [ "$EN_OM" = "true" ] && [ "$EN_Q" = "true" ]; then
             echo "❌ 错误: 不能同时启用原版 Modem 和 QModem！"
             exit 1
           fi
@@ -790,78 +862,18 @@ jobs:
 
           cat base.config > .config
 
-          # 依赖预装自动化
-          echo "🔧 依赖预装自动化..."
-          
-          # 建立依赖映射表
-          [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && echo "CONFIG_PACKAGE_zoneinfo-all=y" >> .config
-          [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && echo "CONFIG_PACKAGE_zoneinfo-core=y" >> .config
-          [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
-          [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && echo "CONFIG_PACKAGE_libstdcpp=y" >> .config
-          [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && echo "CONFIG_PACKAGE_libpthread=y" >> .config
-          [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && echo "CONFIG_PACKAGE_librt=y" >> .config
-          [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && echo "CONFIG_PACKAGE_curl=y" >> .config
-          [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && echo "CONFIG_PACKAGE_libopenssl=y" >> .config
-          
-          [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ] && echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
-          [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ] && echo "CONFIG_PACKAGE_libstdcpp=y" >> .config
-          [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ] && echo "CONFIG_PACKAGE_libpthread=y" >> .config
-          [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ] && echo "CONFIG_PACKAGE_librt=y" >> .config
-          [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ] && echo "CONFIG_PACKAGE_libopenssl=y" >> .config
-          
-          echo "✅ 依赖预装自动化完成"
-
-          # 应用额外配置
-          if [ -f "$GITHUB_WORKSPACE/h5000m.extra.config" ]; then
-            echo "📄 应用额外配置..."
-            cat "$GITHUB_WORKSPACE/h5000m.extra.config" >> .config
-          fi
-
-          # 应用插件配置关联
-          if [ -f "features.config" ]; then
-            echo "📄 应用插件配置关联..."
-            cat features.config >> .config
-          fi
-
-          # IP地址修改已在前面的步骤中完成（使用config_generate脚本方法）
-
-          # 硬编码指定插件已移至 h5000m.extra.config 文件
-
-          # 根据输入动态配置包（简化：只启用顶层包，依赖由 make defconfig 自动解析）
-          disabled_pkgs=("luci-app-sms-tool-lite" "luci-app-3ginfo-lite")
-
-          # 读取环境变量到关联数组
-          declare -A pkg_enabled
-          pkg_enabled["adguardhome"]="${{ steps.set-env.outputs.enable_adguardhome }}"
-          pkg_enabled["openclash"]="${{ steps.set-env.outputs.enable_openclash }}"
-          pkg_enabled["nikki"]="${{ steps.set-env.outputs.enable_nikki }}"
-          pkg_enabled["upnp"]="${{ steps.set-env.outputs.enable_upnp }}"
-          pkg_enabled["vlmcsd"]="${{ steps.set-env.outputs.enable_vlmcsd }}"
-          pkg_enabled["mosdns"]="${{ steps.set-env.outputs.enable_mosdns }}"
-          pkg_enabled["dockerman"]="${{ steps.set-env.outputs.enable_dockerman }}"
-          pkg_enabled["mwan3"]="${{ steps.set-env.outputs.enable_mwan }}"
-          pkg_enabled["homeproxy"]="${{ steps.set-env.outputs.enable_homeproxy }}"
-          pkg_enabled["adbyby-plus"]="${{ steps.set-env.outputs.enable_adbyby_plus }}"
-          pkg_enabled["netspeedtest"]="${{ steps.set-env.outputs.enable_netspeedtest }}"
-          pkg_enabled["at-webserver"]="${{ steps.set-env.outputs.enable_at_webserver }}"
-          pkg_enabled["zerotier"]="${{ steps.set-env.outputs.enable_zerotier }}"
-          pkg_enabled["wrtbwmon"]="${{ steps.set-env.outputs.enable_wrtbwmon }}"
-          pkg_enabled["watchcat"]="${{ steps.set-env.outputs.enable_watchcat }}"
-          pkg_enabled["easytier"]="${{ steps.set-env.outputs.enable_easytier }}"
-          pkg_enabled["lucky"]="${{ steps.set-env.outputs.enable_lucky }}"
-          pkg_enabled["bandix"]="${{ steps.set-env.outputs.enable_bandix }}"
-          # 注意：EasyTier 和 Bandix 都通过离线包方式安装，不在 .config 文件中添加配置
-
-          for pkg in "${!pkg_enabled[@]}"; do
-            if [ "${pkg_enabled[$pkg]}" = "true" ]; then
-              # nikki 需要特殊处理
-              if [ "$pkg" = "nikki" ]; then
-                echo "🔧 配置 Nikki 及其依赖..."
-                # Nikki 核心包
+          echo "🔧 基于 plugins.json 循环生成 .config..."
+          TRUE_KEYS=$(jq -r 'to_entries | map(select(.key|startswith("enable_") and .value==true)) | .[].key' "$CFG")
+          for key in $TRUE_KEYS; do
+            name="${key#enable_}"
+            case "$name" in
+              easytier|bandix)
+                echo "ℹ️ $name 通过离线包安装，关联依赖在构建前置已处理"
+                ;;
+              nikki)
                 echo "CONFIG_PACKAGE_nikki=y" >> .config
                 echo "CONFIG_PACKAGE_luci-app-nikki=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-nikki-zh-cn=y" >> .config
-                # Nikki 依赖
                 echo "CONFIG_PACKAGE_ca-bundle=y" >> .config
                 echo "CONFIG_PACKAGE_curl=y" >> .config
                 echo "CONFIG_PACKAGE_yq=y" >> .config
@@ -871,141 +883,98 @@ jobs:
                 echo "CONFIG_PACKAGE_kmod-nft-socket=y" >> .config
                 echo "CONFIG_PACKAGE_kmod-nft-tproxy=y" >> .config
                 echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
-              elif [ "$pkg" = "easytier" ] || [ "$pkg" = "bandix" ]; then
-                echo "🔧 $pkg 已在前面的步骤中通过离线包方式处理，跳过配置..."
-              elif [ "$pkg" = "openclash" ]; then
-                echo "🔧 配置 openclash..."
+                ;;
+              openclash)
                 echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
-                # 预置 Clash 内核
-                echo -e "预置 Clash 内核"
-                mkdir -p feeds/luci/applications/luci-app-openclash/root/etc/openclash/core
-                core_path="feeds/luci/applications/luci-app-openclash/root/etc/openclash/core"
-                goe_path="feeds/luci/applications/luci-app-openclash/root/etc/openclash"
-                CLASH_META_URL="https://raw.githubusercontent.com/vernesong/OpenClash/core/master/meta/clash-linux-arm64.tar.gz"
-                GEOIP_URL="https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat"
-                GEOSITE_URL="https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
-                # 下载并安装内核
-                wget -qO- $CLASH_META_URL | tar xOvz > $core_path/clash_meta
-                wget -qO- $GEOIP_URL > $goe_path/GeoIP.dat
-                wget -qO- $GEOSITE_URL > $goe_path/GeoSite.dat
-                # 设置权限
-                chmod +x $core_path/clash*
-              elif [ "$pkg" = "adguardhome" ]; then
-                echo "CONFIG_PACKAGE_luci-app-$pkg=y" >> .config
-                echo "CONFIG_PACKAGE_luci-i18n-$pkg-zh-cn=y" >> .config
-              elif [ "$pkg" = "adbyby-plus" ]; then
-                # adbyby-plus 及其依赖 (Plus+ 模式需要 ipset)
+                ;;
+              adbyby_plus)
                 echo "CONFIG_PACKAGE_luci-app-adbyby-plus=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-adbyby-plus-zh-cn=y" >> .config
                 echo "CONFIG_PACKAGE_ipset=y" >> .config
-              elif [ "$pkg" = "netspeedtest" ]; then
-                echo "🔧 配置 netspeedtest..."
-                echo "CONFIG_PACKAGE_luci-app-netspeedtest=y" >> .config
-                echo "CONFIG_PACKAGE_luci-i18n-netspeedtest-zh-cn=y" >> .config
-              elif [ "$pkg" = "at-webserver" ]; then
-                echo "🔧 配置 at-webserver..."
-                echo "CONFIG_PACKAGE_luci-app-at-webserver=y" >> .config
-                echo "CONFIG_PACKAGE_luci-i18n-at-webserver-zh-cn=y" >> .config
-              elif [ "$pkg" = "zerotier" ]; then
+                ;;
+              original_modem)
+                echo "CONFIG_PACKAGE_luci-app-modem=y" >> .config
+                echo "CONFIG_PACKAGE_modem=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-modem-zh-cn=y" >> .config
+                ;;
+              qmodem_next)
+                echo "CONFIG_PACKAGE_luci-app-qmodem-next=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-qmodem-next-zh-cn=y" >> .config
+                ;;
+              qmodem)
+                echo "CONFIG_PACKAGE_luci-app-qmodem=y" >> .config
+                echo "CONFIG_PACKAGE_luci-compat=y" >> .config
+                echo "CONFIG_PACKAGE_qmodem=y" >> .config
+                echo "CONFIG_PACKAGE_luci-app-qmodem_INCLUDE_vendor-qmi-wwan=y" >> .config
+                echo "# CONFIG_PACKAGE_luci-app-qmodem_INCLUDE_generic-qmi-wwan is not set" >> .config
+                echo "CONFIG_PACKAGE_luci-app-qmodem_INCLUDE_ndisc6=y" >> .config
+                echo "# CONFIG_PACKAGE_luci-app-qmodem_INCLUDE_rdisc6 is not set" >> .config
+                echo "# CONFIG_PACKAGE_luci-app-qmodem_INCLUDE_no_ndisc_rdisc6 is not set" >> .config
+                echo "CONFIG_PACKAGE_ndisc6=y" >> .config
+                echo "CONFIG_PACKAGE_quectel-CM-5G-M=y" >> .config
+                echo "CONFIG_PACKAGE_sms-tool_q=y" >> .config
+                echo "CONFIG_PACKAGE_ubus-at-daemon=y" >> .config
+                echo "CONFIG_PACKAGE_tom_modem=y" >> .config
+                echo "CONFIG_PACKAGE_luci-app-qmodem-sms=y" >> .config
+                echo "CONFIG_PACKAGE_kmod-qmi_wwan_q=y" >> .config
+                echo "CONFIG_PACKAGE_kmod-qmi_wwan_f=y" >> .config
+                echo "CONFIG_PACKAGE_kmod-qmi_wwan_s=y" >> .config
+                ;;
+              mwan)
+                echo "CONFIG_PACKAGE_mwan3=y" >> .config
+                echo "CONFIG_PACKAGE_luci-app-mwan3=y" >> .config
+                ;;
+              zerotier)
                 echo "CONFIG_PACKAGE_zerotier=y" >> .config
                 echo "CONFIG_PACKAGE_luci-app-zerotier=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-zerotier-zh-cn=y" >> .config
-              elif [ "$pkg" = "wrtbwmon" ]; then
+                ;;
+              wrtbwmon)
                 echo "CONFIG_PACKAGE_wrtbwmon=y" >> .config
                 echo "CONFIG_PACKAGE_luci-app-wrtbwmon=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-wrtbwmon-zh-cn=y" >> .config
-              elif [ "$pkg" = "watchcat" ]; then
+                ;;
+              watchcat)
                 echo "CONFIG_PACKAGE_watchcat=y" >> .config
                 echo "CONFIG_PACKAGE_luci-app-watchcat=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-watchcat-zh-cn=y" >> .config
-              elif [ "$pkg" = "lucky" ]; then
-                echo "🔧 配置 lucky..."
+                ;;
+              netspeedtest)
+                echo "CONFIG_PACKAGE_luci-app-netspeedtest=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-netspeedtest-zh-cn=y" >> .config
+                ;;
+              at_webserver)
+                echo "CONFIG_PACKAGE_luci-app-at-webserver=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-at-webserver-zh-cn=y" >> .config
+                ;;
+              lucky)
                 echo "CONFIG_PACKAGE_luci-app-lucky=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-lucky-zh-cn=y" >> .config
-              else
-                echo "CONFIG_PACKAGE_luci-app-$pkg=y" >> .config
-              fi
-            else
-              # 特殊包禁用时添加所有相关包
-              if [ "$pkg" = "nikki" ]; then
-                disabled_pkgs+=('nikki' 'luci-app-nikki' 'luci-i18n-nikki-zh-cn' 'luci-i18n-nikki-en')
-              elif [ "$pkg" = "adbyby-plus" ]; then
-                disabled_pkgs+=('luci-app-$pkg' 'luci-i18n-$pkg-zh-cn')
-              elif [ "$pkg" = "netspeedtest" ]; then
-                disabled_pkgs+=('luci-app-netspeedtest')
-              elif [ "$pkg" = "at-webserver" ]; then
-                disabled_pkgs+=('luci-app-at-webserver')
-              elif [ "$pkg" = "zerotier" ]; then
-                disabled_pkgs+=('zerotier' 'luci-app-zerotier')
-              elif [ "$pkg" = "wrtbwmon" ]; then
-                disabled_pkgs+=('wrtbwmon' 'luci-app-wrtbwmon')
-              elif [ "$pkg" = "watchcat" ]; then
-                disabled_pkgs+=('watchcat' 'luci-app-watchcat')
-              elif [ "$pkg" = "easytier" ]; then
-                echo "🔧 跳过禁用 $pkg，因为它通过离线包方式安装"
-              elif [ "$pkg" = "bandix" ]; then
-                echo "🔧 跳过禁用 $pkg，因为它通过离线包方式安装"
-              elif [ "$pkg" = "lucky" ]; then
-                disabled_pkgs+=('luci-app-lucky')
-              else
-                disabled_pkgs+=('luci-app-$pkg')
-              fi
-            fi
+                ;;
+              adguardhome|mosdns|dockerman|homeproxy|upnp|vlmcsd)
+                echo "CONFIG_PACKAGE_luci-app-${name}=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-${name}-zh-cn=y" >> .config || true
+                ;;
+              *)
+                echo "CONFIG_PACKAGE_luci-app-${name}=y" >> .config
+                ;;
+            esac
           done
 
-          # 原版 Modem 处理（互斥）
-          if [ "${{ steps.set-env.outputs.enable_original_modem }}" = "true" ]; then
-            echo "CONFIG_PACKAGE_luci-app-modem=y" >> .config
-            echo "CONFIG_PACKAGE_modem=y" >> .config
-            echo "CONFIG_PACKAGE_luci-i18n-modem-zh-cn=y" >> .config
-          else
-            disabled_pkgs+=("luci-app-modem" "modem" "luci-i18n-modem-zh-cn" "luci-i18n-modem-en")
+          # 应用额外配置
+          if [ -f "$GITHUB_WORKSPACE/h5000m.extra.config" ]; then
+            echo "📄 应用额外配置..."
+            cat "$GITHUB_WORKSPACE/h5000m.extra.config" >> .config
           fi
 
-          # QModem 特殊处理（互斥）
-          if [ "${{ steps.set-env.outputs.enable_qmodem_next }}" = "true" ]; then
-            echo "CONFIG_PACKAGE_luci-app-qmodem-next=y" >> .config
-            echo "CONFIG_PACKAGE_luci-i18n-qmodem-next-zh-cn=y" >> .config
-          elif [ "${{ steps.set-env.outputs.enable_qmodem }}" = "true" ]; then
-            echo "CONFIG_PACKAGE_luci-app-qmodem=y" >> .config
-            # QModem 核心
-            echo "CONFIG_PACKAGE_luci-compat=y" >> .config
-            echo "CONFIG_PACKAGE_qmodem=y" >> .config
-            # QModem 驱动选择 - 使用 Vendor 驱动
-            echo "CONFIG_PACKAGE_luci-app-qmodem_INCLUDE_vendor-qmi-wwan=y" >> .config
-            echo "# CONFIG_PACKAGE_luci-app-qmodem_INCLUDE_generic-qmi-wwan is not set" >> .config
-            # QModem IPv6 支持
-            echo "CONFIG_PACKAGE_luci-app-qmodem_INCLUDE_ndisc6=y" >> .config
-            echo "# CONFIG_PACKAGE_luci-app-qmodem_INCLUDE_rdisc6 is not set" >> .config
-            echo "# CONFIG_PACKAGE_luci-app-qmodem_INCLUDE_no_ndisc_rdisc6 is not set" >> .config
-            echo "CONFIG_PACKAGE_ndisc6=y" >> .config
-            # QModem Quectel CM 选择 - 使用 Tom 定制版
-            echo "CONFIG_PACKAGE_luci-app-qmodem_USE_TOM_CUSTOMIZED_QUECTEL_CM=y" >> .config
-            echo "# CONFIG_PACKAGE_luci-app-qmodem_USING_QWRT_QUECTEL_CM_5G is not set" >> .config
-            echo "# CONFIG_PACKAGE_luci-app-qmodem_USING_NORMAL_QUECTEL_CM is not set" >> .config
-            echo "CONFIG_PACKAGE_quectel-CM-5G-M=y" >> .config
-            # QModem 依赖工具
-            echo "CONFIG_PACKAGE_sms-tool_q=y" >> .config
-            echo "CONFIG_PACKAGE_ubus-at-daemon=y" >> .config
-            echo "CONFIG_PACKAGE_tom_modem=y" >> .config
-            # 短信界面
-            echo "CONFIG_PACKAGE_luci-app-qmodem-sms=y" >> .config
-            # QModem Vendor QMI 驱动
-            echo "CONFIG_PACKAGE_kmod-qmi_wwan_q=y" >> .config
-            echo "CONFIG_PACKAGE_kmod-qmi_wwan_f=y" >> .config
-            echo "CONFIG_PACKAGE_kmod-qmi_wwan_s=y" >> .config
-            # QModem MWAN (多WAN负载均衡)
-            echo "CONFIG_PACKAGE_mwan3=y" >> .config
-            echo "CONFIG_PACKAGE_luci-app-mwan3=y" >> .config
-            # 如果同时启用了 MWAN，则启用 luci-app-qmodem-mwan
-            if [ "${{ steps.set-env.outputs.enable_mwan }}" = "true" ]; then
-              echo "CONFIG_PACKAGE_luci-app-qmodem-mwan=y" >> .config
-            fi
-            # HQOS 支持
-            echo "CONFIG_PACKAGE_mtkhqos_util=y" >> .config
-          else
-            disabled_pkgs+=("luci-app-qmodem-next" "luci-app-qmodem")
-          fi
+          # 已移除 features.config 独立文件，相关依赖在上述循环中处理
+
+          # IP地址修改已在前面的步骤中完成（使用config_generate脚本方法）
+
+          # 硬编码指定插件已移至 h5000m.extra.config 文件
+
+          # 统一禁用不需要的包（可根据需要补充）
+          disabled_pkgs=("luci-app-sms-tool-lite" "luci-app-3ginfo-lite")
 
           # 统一禁用不需要的包
           all_disabled=("luci-app-wrtbwmon" "luci-app-rclone" "rclone" "rclone-ng" "rclone-webui-react" "${disabled_pkgs[@]}")
@@ -1040,70 +1009,18 @@ jobs:
           echo "📦 打包源码和配置..."
           tar --exclude="$SOURCE_DIR/build_dir" --exclude="$SOURCE_DIR/tmp" -czf source.tar.gz $SOURCE_DIR $GITHUB_WORKSPACE/h5000m.extra.config $GITHUB_WORKSPACE/feeds.conf.default 2>/dev/null || true
 
-      - name: 保存插件配置
-        id: save-config
-        run: |
-          echo "保存当前插件配置..."
-          mkdir -p config
-          cat > config/plugins.json << EOF
-          {
-            "enable_adguardhome": "${{ steps.set-env.outputs.enable_adguardhome }}",
-            "enable_openclash": "${{ steps.set-env.outputs.enable_openclash }}",
-            "enable_nikki": "${{ steps.set-env.outputs.enable_nikki }}",
-            "enable_upnp": "${{ steps.set-env.outputs.enable_upnp }}",
-            "enable_vlmcsd": "${{ steps.set-env.outputs.enable_vlmcsd }}",
-            "enable_mosdns": "${{ steps.set-env.outputs.enable_mosdns }}",
-            "enable_dockerman": "${{ steps.set-env.outputs.enable_dockerman }}",
-            "enable_qmodem_next": "${{ steps.set-env.outputs.enable_qmodem_next }}",
-            "enable_qmodem": "${{ steps.set-env.outputs.enable_qmodem }}",
-            "enable_mwan": "${{ steps.set-env.outputs.enable_mwan }}",
-            "enable_homeproxy": "${{ steps.set-env.outputs.enable_homeproxy }}",
-            "enable_adbyby_plus": "${{ steps.set-env.outputs.enable_adbyby_plus }}",
-            "enable_original_modem": "${{ steps.set-env.outputs.enable_original_modem }}",
-            "enable_netspeedtest": "${{ steps.set-env.outputs.enable_netspeedtest }}",
-            "enable_at_webserver": "${{ steps.set-env.outputs.enable_at_webserver }}",
-            "enable_zerotier": "${{ steps.set-env.outputs.enable_zerotier }}",
-            "enable_wrtbwmon": "${{ steps.set-env.outputs.enable_wrtbwmon }}",
-            "enable_watchcat": "${{ steps.set-env.outputs.enable_watchcat }}",
-            "enable_easytier": "${{ steps.set-env.outputs.enable_easytier }}",
-            "enable_lucky": "${{ steps.set-env.outputs.enable_lucky }}",
-            "enable_bandix": "${{ steps.set-env.outputs.enable_bandix }}"
-          }
-          EOF
-          echo "✅ 插件配置保存完成"
-          cat config/plugins.json
+      - name: 缓存插件配置保存
+        uses: actions/cache/save@v4
+        with:
+          path: config/plugins.json
+          key: plugins-config-${{ github.run_id }}
 
-      - name: 生成功能开启清单
-        run: |
-          mkdir -p config
-          touch config/features_list.txt
-          echo "⚙️ 启用的功能:" > config/features_list.txt
-          echo "" >> config/features_list.txt
-          
-          # 动态生成功能列表
-          [ "${{ steps.set-env.outputs.enable_adguardhome }}" = "true" ] && echo "• AdGuardHome: ${{ steps.set-env.outputs.enable_adguardhome }}" >> config/features_list.txt
-          [ "${{ steps.set-env.outputs.enable_openclash }}" = "true" ] && echo "• OpenClash: ${{ steps.set-env.outputs.enable_openclash }}" >> config/features_list.txt
-          [ "${{ steps.set-env.outputs.enable_nikki }}" = "true" ] && echo "• Nikki: ${{ steps.set-env.outputs.enable_nikki }}" >> config/features_list.txt
-          [ "${{ steps.set-env.outputs.enable_upnp }}" = "true" ] && echo "• UPnP: ${{ steps.set-env.outputs.enable_upnp }}" >> config/features_list.txt
-          [ "${{ steps.set-env.outputs.enable_vlmcsd }}" = "true" ] && echo "• VLMCSd: ${{ steps.set-env.outputs.enable_vlmcsd }}" >> config/features_list.txt
-          [ "${{ steps.set-env.outputs.enable_mosdns }}" = "true" ] && echo "• MosDNS: ${{ steps.set-env.outputs.enable_mosdns }}" >> config/features_list.txt
-          [ "${{ steps.set-env.outputs.enable_dockerman }}" = "true" ] && echo "• DockerMan: ${{ steps.set-env.outputs.enable_dockerman }}" >> config/features_list.txt
-          [ "${{ steps.set-env.outputs.enable_mwan }}" = "true" ] && echo "• MWAN: ${{ steps.set-env.outputs.enable_mwan }}" >> config/features_list.txt
-          [ "${{ steps.set-env.outputs.enable_homeproxy }}" = "true" ] && echo "• HomeProxy: ${{ steps.set-env.outputs.enable_homeproxy }}" >> config/features_list.txt
-          [ "${{ steps.set-env.outputs.enable_adbyby_plus }}" = "true" ] && echo "• Adbyby Plus: ${{ steps.set-env.outputs.enable_adbyby_plus }}" >> config/features_list.txt
-          [ "${{ steps.set-env.outputs.enable_original_modem }}" = "true" ] && echo "• 原版 Modem: ${{ steps.set-env.outputs.enable_original_modem }}" >> config/features_list.txt
-          [ "${{ steps.set-env.outputs.enable_netspeedtest }}" = "true" ] && echo "• NetSpeedTest: ${{ steps.set-env.outputs.enable_netspeedtest }}" >> config/features_list.txt
-          [ "${{ steps.set-env.outputs.enable_at_webserver }}" = "true" ] && echo "• AT WebServer: ${{ steps.set-env.outputs.enable_at_webserver }}" >> config/features_list.txt
-          [ "${{ steps.set-env.outputs.enable_zerotier }}" = "true" ] && echo "• ZeroTier: ${{ steps.set-env.outputs.enable_zerotier }}" >> config/features_list.txt
-          [ "${{ steps.set-env.outputs.enable_wrtbwmon }}" = "true" ] && echo "• WRtBWMon: ${{ steps.set-env.outputs.enable_wrtbwmon }}" >> config/features_list.txt
-          [ "${{ steps.set-env.outputs.enable_watchcat }}" = "true" ] && echo "• WatchCat: ${{ steps.set-env.outputs.enable_watchcat }}" >> config/features_list.txt
-          [ "${{ steps.set-env.outputs.enable_easytier }}" = "true" ] && echo "• EasyTier: ${{ steps.set-env.outputs.enable_easytier }}" >> config/features_list.txt
-          [ "${{ steps.set-env.outputs.enable_lucky }}" = "true" ] && echo "• Lucky: ${{ steps.set-env.outputs.enable_lucky }}" >> config/features_list.txt
-          [ "${{ steps.set-env.outputs.enable_bandix }}" = "true" ] && echo "• Bandix: ${{ steps.set-env.outputs.enable_bandix }}" >> config/features_list.txt
-          
-          echo "" >> config/features_list.txt
-          echo "✅ 功能开启清单生成完成"
-          cat config/features_list.txt
+      - name: 上传构建配置 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-configs
+          path: config/
+          retention-days: 7
 
       - name: 缓存插件配置
         uses: actions/cache@v4
@@ -1134,6 +1051,11 @@ jobs:
           echo "📦 解压源码..."
           tar -xzf source.tar.gz
           echo "✅ 源码解压完成"
+
+      - name: 下载构建配置
+        uses: actions/download-artifact@v4
+        with:
+          name: build-configs
 
       - name: 安装编译依赖
         run: |
@@ -1217,40 +1139,28 @@ jobs:
       - name: 动态生成Release信息
         run: |
           cd $SOURCE_DIR
-          echo "🎉 **ImmortalWrt H5000M 固件已构建完成**" > release_body.txt
-          echo "" >> release_body.txt
-          echo "📅 时间: ${{ github.event.repository.updated_at }}" >> release_body.txt
-          echo "🔗 运行 ID: ${{ github.run_id }}" >> release_body.txt
-          echo "" >> release_body.txt
-          echo "**⚙️ 启用的功能:**" >> release_body.txt
-          
-          # 动态生成功能列表
-          [ "${{ needs.prepare.outputs.enable_adguardhome }}" = "true" ] && echo "- AdGuardHome: ${{ needs.prepare.outputs.enable_adguardhome }}" >> release_body.txt
-          [ "${{ needs.prepare.outputs.enable_openclash }}" = "true" ] && echo "- OpenClash: ${{ needs.prepare.outputs.enable_openclash }}" >> release_body.txt
-          [ "${{ needs.prepare.outputs.enable_nikki }}" = "true" ] && echo "- Nikki: ${{ needs.prepare.outputs.enable_nikki }}" >> release_body.txt
-          [ "${{ needs.prepare.outputs.enable_upnp }}" = "true" ] && echo "- UPnP: ${{ needs.prepare.outputs.enable_upnp }}" >> release_body.txt
-          [ "${{ needs.prepare.outputs.enable_vlmcsd }}" = "true" ] && echo "- VLMCSd: ${{ needs.prepare.outputs.enable_vlmcsd }}" >> release_body.txt
-          [ "${{ needs.prepare.outputs.enable_mosdns }}" = "true" ] && echo "- MosDNS: ${{ needs.prepare.outputs.enable_mosdns }}" >> release_body.txt
-          [ "${{ needs.prepare.outputs.enable_dockerman }}" = "true" ] && echo "- DockerMan: ${{ needs.prepare.outputs.enable_dockerman }}" >> release_body.txt
-          [ "${{ needs.prepare.outputs.enable_mwan }}" = "true" ] && echo "- MWAN: ${{ needs.prepare.outputs.enable_mwan }}" >> release_body.txt
-          [ "${{ needs.prepare.outputs.enable_homeproxy }}" = "true" ] && echo "- HomeProxy: ${{ needs.prepare.outputs.enable_homeproxy }}" >> release_body.txt
-          [ "${{ needs.prepare.outputs.enable_adbyby_plus }}" = "true" ] && echo "- Adbyby Plus: ${{ needs.prepare.outputs.enable_adbyby_plus }}" >> release_body.txt
-          [ "${{ needs.prepare.outputs.enable_original_modem }}" = "true" ] && echo "- 原版 Modem: ${{ needs.prepare.outputs.enable_original_modem }}" >> release_body.txt
-          [ "${{ needs.prepare.outputs.enable_netspeedtest }}" = "true" ] && echo "- NetSpeedTest: ${{ needs.prepare.outputs.enable_netspeedtest }}" >> release_body.txt
-          [ "${{ needs.prepare.outputs.enable_at_webserver }}" = "true" ] && echo "- AT WebServer: ${{ needs.prepare.outputs.enable_at_webserver }}" >> release_body.txt
-          [ "${{ needs.prepare.outputs.enable_zerotier }}" = "true" ] && echo "- ZeroTier: ${{ needs.prepare.outputs.enable_zerotier }}" >> release_body.txt
-          [ "${{ needs.prepare.outputs.enable_wrtbwmon }}" = "true" ] && echo "- WRtBWMon: ${{ needs.prepare.outputs.enable_wrtbwmon }}" >> release_body.txt
-          [ "${{ needs.prepare.outputs.enable_watchcat }}" = "true" ] && echo "- WatchCat: ${{ needs.prepare.outputs.enable_watchcat }}" >> release_body.txt
-          [ "${{ needs.prepare.outputs.enable_easytier }}" = "true" ] && echo "- EasyTier: ${{ needs.prepare.outputs.enable_easytier }}" >> release_body.txt
-          [ "${{ needs.prepare.outputs.enable_lucky }}" = "true" ] && echo "- Lucky: ${{ needs.prepare.outputs.enable_lucky }}" >> release_body.txt
-          [ "${{ needs.prepare.outputs.enable_bandix }}" = "true" ] && echo "- Bandix: ${{ needs.prepare.outputs.enable_bandix }}" >> release_body.txt
-          
-          echo "" >> release_body.txt
-          echo "💾 下载产物: 见下方 Artifacts" >> release_body.txt
-          echo "📋 详细信息: 见 MANIFEST.txt" >> release_body.txt
+          echo "🎉 **ImmortalWrt H5000M 固件已构建完成**" > release_body.md
+          echo "" >> release_body.md
+          echo "📅 时间: ${{ github.event.repository.updated_at }}" >> release_body.md
+          echo "🔗 运行 ID: ${{ github.run_id }}" >> release_body.md
+          echo "" >> release_body.md
+          echo "**⚙️ 启用的功能:**" >> release_body.md
+          jq -r '
+            to_entries
+            | map(select(.key | startswith("enable_") and .value==true))
+            | .[].key
+            | sub("^enable_"; "")
+            | split("_")
+            | map(. as $s | ($s[0:1]|ascii_upcase) + $s[1:])
+            | join(" ")
+            | "- ✅ " + .
+          ' "$GITHUB_WORKSPACE/config/plugins.json" >> release_body.md
+          echo "" >> release_body.md
+          echo "💾 下载产物: 见下方 Artifacts" >> release_body.md
+          echo "📋 详细信息: 见 MANIFEST.txt" >> release_body.md
           
           # 复制到artifacts目录
-          cp release_body.txt ../artifacts/
+          cp release_body.md ../artifacts/
           echo "✅ Release信息生成完成"
 
       - name: 验证产物
@@ -1276,6 +1186,10 @@ jobs:
     runs-on: ubuntu-22.04
     if: success()
     steps:
+      - name: 下载构建配置
+        uses: actions/download-artifact@v4
+        with:
+          name: build-configs
       - name: 下载产物
         uses: actions/download-artifact@v4
         with:
@@ -1295,38 +1209,26 @@ jobs:
           fi
 
           # 生成 Release 信息
-          echo "🎉 **ImmortalWrt H5000M 固件已构建完成**" > artifacts/release_body.txt
-          echo "" >> artifacts/release_body.txt
-          echo "📅 时间: $(date '+%Y-%m-%d %H:%M:%S')" >> artifacts/release_body.txt
-          echo "🔗 运行 ID: ${{ github.run_id }}" >> artifacts/release_body.txt
-          echo "" >> artifacts/release_body.txt
-          echo "**⚙️ 启用的功能:**" >> artifacts/release_body.txt
+          echo "🎉 **ImmortalWrt H5000M 固件已构建完成**" > artifacts/release_body.md
+          echo "" >> artifacts/release_body.md
+          echo "📅 时间: $(date '+%Y-%m-%d %H:%M:%S')" >> artifacts/release_body.md
+          echo "🔗 运行 ID: ${{ github.run_id }}" >> artifacts/release_body.md
+          echo "" >> artifacts/release_body.md
+          echo "**⚙️ 启用的功能:**" >> artifacts/release_body.md
+          jq -r '
+            to_entries
+            | map(select(.key | startswith("enable_") and .value==true))
+            | .[].key
+            | sub("^enable_"; "")
+            | split("_")
+            | map(. as $s | ($s[0:1]|ascii_upcase) + $s[1:])
+            | join(" ")
+            | "- ✅ " + .
+          ' "$GITHUB_WORKSPACE/config/plugins.json" >> artifacts/release_body.md
           
-          # 动态生成功能列表
-          [ "${{ needs.prepare.outputs.enable_adguardhome }}" = "true" ] && echo "- AdGuardHome" >> artifacts/release_body.txt
-          [ "${{ needs.prepare.outputs.enable_openclash }}" = "true" ] && echo "- OpenClash" >> artifacts/release_body.txt
-          [ "${{ needs.prepare.outputs.enable_nikki }}" = "true" ] && echo "- Nikki" >> artifacts/release_body.txt
-          [ "${{ needs.prepare.outputs.enable_upnp }}" = "true" ] && echo "- UPnP" >> artifacts/release_body.txt
-          [ "${{ needs.prepare.outputs.enable_vlmcsd }}" = "true" ] && echo "- VLMCSd" >> artifacts/release_body.txt
-          [ "${{ needs.prepare.outputs.enable_mosdns }}" = "true" ] && echo "- MosDNS" >> artifacts/release_body.txt
-          [ "${{ needs.prepare.outputs.enable_dockerman }}" = "true" ] && echo "- DockerMan" >> artifacts/release_body.txt
-          [ "${{ needs.prepare.outputs.enable_mwan }}" = "true" ] && echo "- MWAN" >> artifacts/release_body.txt
-          [ "${{ needs.prepare.outputs.enable_homeproxy }}" = "true" ] && echo "- HomeProxy" >> artifacts/release_body.txt
-          [ "${{ needs.prepare.outputs.enable_adbyby_plus }}" = "true" ] && echo "- Adbyby Plus" >> artifacts/release_body.txt
-          [ "${{ needs.prepare.outputs.enable_original_modem }}" = "true" ] && echo "- 原版 Modem" >> artifacts/release_body.txt
-          [ "${{ needs.prepare.outputs.enable_netspeedtest }}" = "true" ] && echo "- NetSpeedTest" >> artifacts/release_body.txt
-          [ "${{ needs.prepare.outputs.enable_at_webserver }}" = "true" ] && echo "- AT WebServer" >> artifacts/release_body.txt
-          [ "${{ needs.prepare.outputs.enable_zerotier }}" = "true" ] && echo "- ZeroTier" >> artifacts/release_body.txt
-          [ "${{ needs.prepare.outputs.enable_wrtbwmon }}" = "true" ] && echo "- WRtBWMon" >> artifacts/release_body.txt
-          [ "${{ needs.prepare.outputs.enable_watchcat }}" = "true" ] && echo "- WatchCat" >> artifacts/release_body.txt
-          [ "${{ needs.prepare.outputs.enable_easytier }}" = "true" ] && echo "- EasyTier" >> artifacts/release_body.txt
-          [ "${{ needs.prepare.outputs.enable_lucky }}" = "true" ] && echo "- Lucky" >> artifacts/release_body.txt
-          [ "${{ needs.prepare.outputs.enable_bandix }}" = "true" ] && echo "- Bandix" >> artifacts/release_body.txt
-          [ "${{ needs.prepare.outputs.enable_daed }}" = "true" ] && echo "- Daed" >> artifacts/release_body.txt
-          
-          echo "" >> artifacts/release_body.txt
-          echo "💾 下载产物: 见下方 Artifacts" >> artifacts/release_body.txt
-          echo "📋 详细信息: 见 MANIFEST.txt" >> artifacts/release_body.txt
+          echo "" >> artifacts/release_body.md
+          echo "💾 下载产物: 见下方 Artifacts" >> artifacts/release_body.md
+          echo "📋 详细信息: 见 MANIFEST.txt" >> artifacts/release_body.md
 
           # 生成清单
           cat > artifacts/MANIFEST.txt << EOF
@@ -1339,13 +1241,6 @@ jobs:
           🏷️  Build #: ${{ github.run_number }}
 
           EOF
-          
-          # 追加功能开启清单
-          if [ -f "$GITHUB_WORKSPACE/config/features_list.txt" ]; then
-            cat "$GITHUB_WORKSPACE/config/features_list.txt" >> artifacts/MANIFEST.txt
-          else
-            echo "⚠️ 功能开启清单文件不存在"
-          fi
           
           echo "" >> artifacts/MANIFEST.txt
           echo "📦 产物文件:" >> artifacts/MANIFEST.txt
@@ -1367,7 +1262,7 @@ jobs:
         with:
           tag_name: h5000m-${{ github.run_number }}
           name: ImmortalWrt H5000M
-          body_path: artifacts/release_body.txt
+          body_path: artifacts/release_body.md
           files: |
             artifacts/*.bin
             artifacts/*.img.gz
