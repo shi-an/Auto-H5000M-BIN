@@ -1041,6 +1041,12 @@ jobs:
     needs: prepare
     runs-on: ubuntu-22.04
     steps:
+      - name: 下载构建配置
+        uses: actions/download-artifact@v4
+        with:
+          name: build-configs
+          path: config
+
       - name: 下载源码
         uses: actions/download-artifact@v4
         with:
@@ -1190,6 +1196,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: build-configs
+          path: config
+
       - name: 下载产物
         uses: actions/download-artifact@v4
         with:
