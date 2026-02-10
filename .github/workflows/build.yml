@@ -1058,11 +1058,6 @@ jobs:
           tar -xzf source.tar.gz
           echo "✅ 源码解压完成"
 
-      - name: 下载构建配置
-        uses: actions/download-artifact@v4
-        with:
-          name: build-configs
-
       - name: 安装编译依赖
         run: |
           echo "📦 安装编译依赖..."
@@ -1144,6 +1139,9 @@ jobs:
 
       - name: 动态生成Release信息
         run: |
+          echo "🔍 调试：检查 config 目录"
+          ls -R "$GITHUB_WORKSPACE/config" || echo "config 目录不存在"
+          
           cd $SOURCE_DIR
           echo "🎉 **ImmortalWrt H5000M 固件已构建完成**" > release_body.md
           echo "" >> release_body.md
@@ -1215,6 +1213,9 @@ jobs:
             echo "❌ 没有找到产物文件"
             exit 1
           fi
+
+          echo "🔍 调试：检查 config 目录"
+          ls -R "$GITHUB_WORKSPACE/config" || echo "config 目录不存在"
 
           # 生成 Release 信息
           echo "🎉 **ImmortalWrt H5000M 固件已构建完成**" > artifacts/release_body.md
