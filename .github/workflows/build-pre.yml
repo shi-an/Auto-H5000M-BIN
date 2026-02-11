@@ -28,6 +28,11 @@ on:
         required: false
         default: true
         type: boolean
+      enable_upnp:
+        description: '启用 UPnP'
+        required: false
+        default: true
+        type: boolean
   repository_dispatch:
     types:
       - Source Code Update
@@ -55,6 +60,7 @@ jobs:
       enable_easytier: ${{ steps.set-env.outputs.enable_easytier }}
       enable_lucky: ${{ steps.set-env.outputs.enable_lucky }}
       enable_bandix: ${{ steps.set-env.outputs.enable_bandix }}
+      enable_upnp: ${{ steps.set-env.outputs.enable_upnp }}
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -84,6 +90,7 @@ jobs:
             ENABLE_EASYTIER="${{ github.event.inputs.enable_easytier || 'false' }}"
             ENABLE_LUCKY="${{ github.event.inputs.enable_lucky || 'false' }}"
             ENABLE_BANDIX="${{ github.event.inputs.enable_bandix || 'false' }}"
+            ENABLE_UPNP="${{ github.event.inputs.enable_upnp || 'false' }}"
           else
             if [ -f "config/plugins.json" ]; then
               echo "📂 自动触发，发现缓存配置，读取 config/plugins.json"
@@ -109,6 +116,7 @@ jobs:
           : ${ENABLE_EASYTIER:=false}
           : ${ENABLE_LUCKY:=false}
           : ${ENABLE_BANDIX:=false}
+          : ${ENABLE_UPNP:=false}
           
           # 输出配置
           echo "enable_openclash=$ENABLE_OPENCLASH" >> $GITHUB_OUTPUT
@@ -116,6 +124,7 @@ jobs:
           echo "enable_easytier=$ENABLE_EASYTIER" >> $GITHUB_OUTPUT
           echo "enable_lucky=$ENABLE_LUCKY" >> $GITHUB_OUTPUT
           echo "enable_bandix=$ENABLE_BANDIX" >> $GITHUB_OUTPUT
+          echo "enable_upnp=$ENABLE_UPNP" >> $GITHUB_OUTPUT
           
           # 显示最终配置
           echo "📋 最终使用的配置 (XR30):"
@@ -124,6 +133,7 @@ jobs:
           echo "• EasyTier: $ENABLE_EASYTIER"
           echo "• Lucky: $ENABLE_LUCKY"
           echo "• Bandix: $ENABLE_BANDIX"
+          echo "• UPnP: $ENABLE_UPNP"
 
       - name: 生成标准数据源 plugins.json
         run: |
@@ -135,7 +145,8 @@ jobs:
             "enable_netspeedtest": "${{ steps.set-env.outputs.enable_netspeedtest }}",
             "enable_easytier": "${{ steps.set-env.outputs.enable_easytier }}",
             "enable_lucky": "${{ steps.set-env.outputs.enable_lucky }}",
-            "enable_bandix": "${{ steps.set-env.outputs.enable_bandix }}"
+            "enable_bandix": "${{ steps.set-env.outputs.enable_bandix }}",
+            "enable_upnp": "${{ steps.set-env.outputs.enable_upnp }}"
           }
           EOF
           )
@@ -363,6 +374,10 @@ jobs:
               lucky)
                 echo "CONFIG_PACKAGE_luci-app-lucky=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-lucky-zh-cn=y" >> .config
+                ;;
+              upnp)
+                echo "CONFIG_PACKAGE_luci-app-upnp=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-upnp-zh-cn=y" >> .config
                 ;;
               *)
                 echo "CONFIG_PACKAGE_luci-app-${name}=y" >> .config
