@@ -1284,16 +1284,22 @@ jobs:
           echo "🔗 运行 ID: ${{ github.run_id }}" >> artifacts/release_body.md
           echo "" >> artifacts/release_body.md
           echo "**⚙️ 启用的功能:**" >> artifacts/release_body.md
-          jq -r '
-            to_entries
-            | map(select(.key | startswith("enable_") and .value==true))
-            | .[].key
-            | sub("^enable_"; "")
-            | split("_")
-            | map(. as $s | ($s[0:1]|ascii_upcase) + $s[1:])
-            | join(" ")
-            | "- ✅ " + .
-          ' "$GITHUB_WORKSPACE/config/plugins.json" >> artifacts/release_body.md
+          
+          # 使用 Python 解析 JSON 生成功能列表，避免 jq 兼容性问题
+          python3 -c 'import json, os
+          try:
+              cfg_path = os.path.join(os.environ.get("GITHUB_WORKSPACE"), "config/plugins.json")
+              if os.path.exists(cfg_path):
+                  with open(cfg_path) as f:
+                      data = json.load(f)
+                      for k, v in data.items():
+                          if k.startswith("enable_") and (v is True or str(v).lower() == "true"):
+                              # 处理名称：移除 enable_ 前缀，下划线转空格，单词首字母大写
+                              name = k[7:].replace("_", " ").title()
+                              print(f"- ✅ {name}")
+          except Exception as e:
+              print(f"- ⚠️ 无法解析功能列表: {e}")
+          ' >> artifacts/release_body.md
           
           echo "" >> artifacts/release_body.md
           echo "💾 下载产物: 见下方 Artifacts" >> artifacts/release_body.md
