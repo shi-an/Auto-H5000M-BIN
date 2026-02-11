@@ -1018,10 +1018,13 @@ jobs:
           disabled_pkgs=("luci-app-sms-tool-lite" "luci-app-3ginfo-lite")
 
           # 统一禁用不需要的包
-          all_disabled=("luci-app-wrtbwmon" "luci-app-rclone" "rclone" "rclone-ng" "rclone-webui-react" "luci-app-modem" "luci-app-sms-tool-lite" "luci-app-3ginfo-lite")
+          all_disabled=("luci-app-wrtbwmon" "luci-app-rclone" "rclone" "rclone-ng" "rclone-webui-react" "luci-app-modem" "luci-app-sms-tool-lite" "luci-app-3ginfo-lite" "luci-app-qmodem" "qmodem")
           for pkg in "${all_disabled[@]}"; do
-            sed -i "/^CONFIG_PACKAGE_${pkg}=/d" .config
-            echo "# CONFIG_PACKAGE_${pkg} is not set" >> .config
+            # 如果该包没有被显式设置为=y，则禁用它
+            if ! grep -q "^CONFIG_PACKAGE_${pkg}=y" .config; then
+              sed -i "/^CONFIG_PACKAGE_${pkg}=/d" .config
+              echo "# CONFIG_PACKAGE_${pkg} is not set" >> .config
+            fi
           done
 
           # 自动解析依赖
