@@ -3,95 +3,15 @@ name: Build ImmortalWrt XR30
 on:
   workflow_dispatch:
     inputs:
-      enable_adguardhome:
-        description: '启用 AdGuardHome'
-        required: false
-        default: false
-        type: boolean
       enable_openclash:
         description: '启用 OpenClash'
         required: false
         default: true
         type: boolean
-      enable_nikki:
-        description: '启用 Nikki'
-        required: false
-        default: false
-        type: boolean
-      enable_upnp:
-        description: '启用 UPnP'
-        required: false
-        default: false
-        type: boolean
-      enable_vlmcsd:
-        description: '启用 VLMCSd'
-        required: false
-        default: false
-        type: boolean
-      enable_mosdns:
-        description: '启用 MosDNS'
-        required: false
-        default: false
-        type: boolean
-      enable_dockerman:
-        description: '启用 DockerMan'
-        required: false
-        default: false
-        type: boolean
-      enable_qmodem_next:
-        description: '启用 QModem Next (新版)'
-        required: false
-        default: false
-        type: boolean
-      enable_qmodem:
-        description: '启用 QModem (旧版)'
-        required: false
-        default: false
-        type: boolean
-      enable_mwan:
-        description: '启用 MWAN (多WAN负载均衡)'
-        required: false
-        default: false
-        type: boolean
-      enable_homeproxy:
-        description: '启用 HomeProxy'
-        required: false
-        default: false
-        type: boolean
-      enable_adbyby_plus:
-        description: '启用 Adbyby Plus'
-        required: false
-        default: false
-        type: boolean
-      enable_original_modem:
-        description: '启用原版 Modem'
-        required: false
-        default: false
-        type: boolean
       enable_netspeedtest:
         description: '启用 netspeedtest'
         required: false
         default: true
-        type: boolean
-      enable_at_webserver:
-        description: '启用 at-webserver'
-        required: false
-        default: false
-        type: boolean
-      enable_zerotier:
-        description: '启用 zerotier'
-        required: false
-        default: false
-        type: boolean
-      enable_wrtbwmon:
-        description: '启用 wrtbwmon'
-        required: false
-        default: false
-        type: boolean
-      enable_watchcat:
-        description: '启用 watchcat'
-        required: false
-        default: false
         type: boolean
       enable_easytier:
         description: '启用 easytier'
@@ -107,11 +27,6 @@ on:
         description: '启用 Bandix'
         required: false
         default: true
-        type: boolean
-      enable_daed:
-        description: '启用 daed'
-        required: false
-        default: false
         type: boolean
   repository_dispatch:
     types:
@@ -135,28 +50,11 @@ jobs:
   prepare:
     runs-on: ubuntu-22.04
     outputs:
-      enable_adguardhome: ${{ steps.set-env.outputs.enable_adguardhome }}
       enable_openclash: ${{ steps.set-env.outputs.enable_openclash }}
-      enable_nikki: ${{ steps.set-env.outputs.enable_nikki }}
-      enable_upnp: ${{ steps.set-env.outputs.enable_upnp }}
-      enable_vlmcsd: ${{ steps.set-env.outputs.enable_vlmcsd }}
-      enable_mosdns: ${{ steps.set-env.outputs.enable_mosdns }}
-      enable_dockerman: ${{ steps.set-env.outputs.enable_dockerman }}
-      enable_qmodem_next: ${{ steps.set-env.outputs.enable_qmodem_next }}
-      enable_qmodem: ${{ steps.set-env.outputs.enable_qmodem }}
-      enable_mwan: ${{ steps.set-env.outputs.enable_mwan }}
-      enable_homeproxy: ${{ steps.set-env.outputs.enable_homeproxy }}
-      enable_adbyby_plus: ${{ steps.set-env.outputs.enable_adbyby_plus }}
-      enable_original_modem: ${{ steps.set-env.outputs.enable_original_modem }}
       enable_netspeedtest: ${{ steps.set-env.outputs.enable_netspeedtest }}
-      enable_at_webserver: ${{ steps.set-env.outputs.enable_at_webserver }}
-      enable_zerotier: ${{ steps.set-env.outputs.enable_zerotier }}
-      enable_wrtbwmon: ${{ steps.set-env.outputs.enable_wrtbwmon }}
-      enable_watchcat: ${{ steps.set-env.outputs.enable_watchcat }}
       enable_easytier: ${{ steps.set-env.outputs.enable_easytier }}
       enable_lucky: ${{ steps.set-env.outputs.enable_lucky }}
       enable_bandix: ${{ steps.set-env.outputs.enable_bandix }}
-      enable_daed: ${{ steps.set-env.outputs.enable_daed }}
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -181,28 +79,11 @@ jobs:
           EVENT_NAME="${{ github.event_name }}"
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             echo "🧭 手动触发，优先使用 UI 传入的 inputs"
-            ENABLE_ADGUARDHOME="${{ github.event.inputs.enable_adguardhome || 'false' }}"
             ENABLE_OPENCLASH="${{ github.event.inputs.enable_openclash || 'false' }}"
-            ENABLE_NIKKI="${{ github.event.inputs.enable_nikki || 'false' }}"
-            ENABLE_UPNP="${{ github.event.inputs.enable_upnp || 'false' }}"
-            ENABLE_VLMCSD="${{ github.event.inputs.enable_vlmcsd || 'false' }}"
-            ENABLE_MOSDNS="${{ github.event.inputs.enable_mosdns || 'false' }}"
-            ENABLE_DOCKERMAN="${{ github.event.inputs.enable_dockerman || 'false' }}"
-            ENABLE_QMODEM_NEXT="${{ github.event.inputs.enable_qmodem_next || 'false' }}"
-            ENABLE_QMODEM="${{ github.event.inputs.enable_qmodem || 'false' }}"
-            ENABLE_MWAN="${{ github.event.inputs.enable_mwan || 'false' }}"
-            ENABLE_HOMEPROXY="${{ github.event.inputs.enable_homeproxy || 'false' }}"
-            ENABLE_ADBYBY_PLUS="${{ github.event.inputs.enable_adbyby_plus || 'false' }}"
-            ENABLE_ORIGINAL_MODEM="${{ github.event.inputs.enable_original_modem || 'false' }}"
             ENABLE_NETSPEEDTEST="${{ github.event.inputs.enable_netspeedtest || 'false' }}"
-            ENABLE_AT_WEBSERVER="${{ github.event.inputs.enable_at_webserver || 'false' }}"
-            ENABLE_ZEROTIER="${{ github.event.inputs.enable_zerotier || 'false' }}"
-            ENABLE_WRTBWMON="${{ github.event.inputs.enable_wrtbwmon || 'false' }}"
-            ENABLE_WATCHCAT="${{ github.event.inputs.enable_watchcat || 'false' }}"
             ENABLE_EASYTIER="${{ github.event.inputs.enable_easytier || 'false' }}"
             ENABLE_LUCKY="${{ github.event.inputs.enable_lucky || 'false' }}"
             ENABLE_BANDIX="${{ github.event.inputs.enable_bandix || 'false' }}"
-            ENABLE_DAED="${{ github.event.inputs.enable_daed || 'false' }}"
           else
             if [ -f "config/plugins.json" ]; then
               echo "📂 自动触发，发现缓存配置，读取 config/plugins.json"
@@ -223,77 +104,26 @@ jobs:
           fi
           
           # 确保所有变量都有值（默认为 false）
-          : ${ENABLE_ADGUARDHOME:=false}
           : ${ENABLE_OPENCLASH:=false}
-          : ${ENABLE_NIKKI:=false}
-          : ${ENABLE_UPNP:=false}
-          : ${ENABLE_VLMCSD:=false}
-          : ${ENABLE_MOSDNS:=false}
-          : ${ENABLE_DOCKERMAN:=false}
-          : ${ENABLE_QMODEM_NEXT:=false}
-          : ${ENABLE_QMODEM:=false}
-          : ${ENABLE_MWAN:=false}
-          : ${ENABLE_HOMEPROXY:=false}
-          : ${ENABLE_ADBYBY_PLUS:=false}
-          : ${ENABLE_ORIGINAL_MODEM:=false}
           : ${ENABLE_NETSPEEDTEST:=false}
-          : ${ENABLE_AT_WEBSERVER:=false}
-          : ${ENABLE_ZEROTIER:=false}
-          : ${ENABLE_WRTBWMON:=false}
-          : ${ENABLE_WATCHCAT:=false}
           : ${ENABLE_EASYTIER:=false}
           : ${ENABLE_LUCKY:=false}
           : ${ENABLE_BANDIX:=false}
-          : ${ENABLE_DAED:=false}
           
           # 输出配置
-          echo "enable_adguardhome=$ENABLE_ADGUARDHOME" >> $GITHUB_OUTPUT
           echo "enable_openclash=$ENABLE_OPENCLASH" >> $GITHUB_OUTPUT
-          echo "enable_nikki=$ENABLE_NIKKI" >> $GITHUB_OUTPUT
-          echo "enable_upnp=$ENABLE_UPNP" >> $GITHUB_OUTPUT
-          echo "enable_vlmcsd=$ENABLE_VLMCSD" >> $GITHUB_OUTPUT
-          echo "enable_mosdns=$ENABLE_MOSDNS" >> $GITHUB_OUTPUT
-          echo "enable_dockerman=$ENABLE_DOCKERMAN" >> $GITHUB_OUTPUT
-          echo "enable_qmodem_next=$ENABLE_QMODEM_NEXT" >> $GITHUB_OUTPUT
-          echo "enable_qmodem=$ENABLE_QMODEM" >> $GITHUB_OUTPUT
-          echo "enable_mwan=$ENABLE_MWAN" >> $GITHUB_OUTPUT
-          echo "enable_homeproxy=$ENABLE_HOMEPROXY" >> $GITHUB_OUTPUT
-          echo "enable_adbyby_plus=$ENABLE_ADBYBY_PLUS" >> $GITHUB_OUTPUT
-          echo "enable_original_modem=$ENABLE_ORIGINAL_MODEM" >> $GITHUB_OUTPUT
           echo "enable_netspeedtest=$ENABLE_NETSPEEDTEST" >> $GITHUB_OUTPUT
-          echo "enable_at_webserver=$ENABLE_AT_WEBSERVER" >> $GITHUB_OUTPUT
-          echo "enable_zerotier=$ENABLE_ZEROTIER" >> $GITHUB_OUTPUT
-          echo "enable_wrtbwmon=$ENABLE_WRTBWMON" >> $GITHUB_OUTPUT
-          echo "enable_watchcat=$ENABLE_WATCHCAT" >> $GITHUB_OUTPUT
           echo "enable_easytier=$ENABLE_EASYTIER" >> $GITHUB_OUTPUT
           echo "enable_lucky=$ENABLE_LUCKY" >> $GITHUB_OUTPUT
           echo "enable_bandix=$ENABLE_BANDIX" >> $GITHUB_OUTPUT
-          echo "enable_daed=$ENABLE_DAED" >> $GITHUB_OUTPUT
           
           # 显示最终配置
           echo "📋 最终使用的配置 (XR30):"
-          echo "• AdGuardHome: $ENABLE_ADGUARDHOME"
           echo "• OpenClash: $ENABLE_OPENCLASH"
-          echo "• Nikki: $ENABLE_NIKKI"
-          echo "• UPnP: $ENABLE_UPNP"
-          echo "• VLMCSd: $ENABLE_VLMCSD"
-          echo "• MosDNS: $ENABLE_MOSDNS"
-          echo "• DockerMan: $ENABLE_DOCKERMAN"
-          echo "• QModem Next: $ENABLE_QMODEM_NEXT"
-          echo "• QModem: $ENABLE_QMODEM"
-          echo "• MWAN: $ENABLE_MWAN"
-          echo "• HomeProxy: $ENABLE_HOMEPROXY"
-          echo "• Adbyby Plus: $ENABLE_ADBYBY_PLUS"
-          echo "• 原版 Modem: $ENABLE_ORIGINAL_MODEM"
           echo "• NetSpeedTest: $ENABLE_NETSPEEDTEST"
-          echo "• AT WebServer: $ENABLE_AT_WEBSERVER"
-          echo "• ZeroTier: $ENABLE_ZEROTIER"
-          echo "• WRtBWMon: $ENABLE_WRTBWMON"
-          echo "• WatchCat: $ENABLE_WATCHCAT"
           echo "• EasyTier: $ENABLE_EASYTIER"
           echo "• Lucky: $ENABLE_LUCKY"
           echo "• Bandix: $ENABLE_BANDIX"
-          echo "• Daed: $ENABLE_DAED"
 
       - name: 生成标准数据源 plugins.json
         run: |
@@ -301,28 +131,11 @@ jobs:
           echo "🧾 生成标准 plugins.json (SSOT)"
           CURRENT_JSON=$(cat << 'EOF'
           {
-            "enable_adguardhome": "${{ steps.set-env.outputs.enable_adguardhome }}",
             "enable_openclash": "${{ steps.set-env.outputs.enable_openclash }}",
-            "enable_nikki": "${{ steps.set-env.outputs.enable_nikki }}",
-            "enable_upnp": "${{ steps.set-env.outputs.enable_upnp }}",
-            "enable_vlmcsd": "${{ steps.set-env.outputs.enable_vlmcsd }}",
-            "enable_mosdns": "${{ steps.set-env.outputs.enable_mosdns }}",
-            "enable_dockerman": "${{ steps.set-env.outputs.enable_dockerman }}",
-            "enable_qmodem_next": "${{ steps.set-env.outputs.enable_qmodem_next }}",
-            "enable_qmodem": "${{ steps.set-env.outputs.enable_qmodem }}",
-            "enable_mwan": "${{ steps.set-env.outputs.enable_mwan }}",
-            "enable_homeproxy": "${{ steps.set-env.outputs.enable_homeproxy }}",
-            "enable_adbyby_plus": "${{ steps.set-env.outputs.enable_adbyby_plus }}",
-            "enable_original_modem": "${{ steps.set-env.outputs.enable_original_modem }}",
             "enable_netspeedtest": "${{ steps.set-env.outputs.enable_netspeedtest }}",
-            "enable_at_webserver": "${{ steps.set-env.outputs.enable_at_webserver }}",
-            "enable_zerotier": "${{ steps.set-env.outputs.enable_zerotier }}",
-            "enable_wrtbwmon": "${{ steps.set-env.outputs.enable_wrtbwmon }}",
-            "enable_watchcat": "${{ steps.set-env.outputs.enable_watchcat }}",
             "enable_easytier": "${{ steps.set-env.outputs.enable_easytier }}",
             "enable_lucky": "${{ steps.set-env.outputs.enable_lucky }}",
-            "enable_bandix": "${{ steps.set-env.outputs.enable_bandix }}",
-            "enable_daed": "${{ steps.set-env.outputs.enable_daed }}"
+            "enable_bandix": "${{ steps.set-env.outputs.enable_bandix }}"
           }
           EOF
           )
@@ -407,31 +220,12 @@ jobs:
             cp "$GITHUB_WORKSPACE/feeds.conf.default" ./feeds.conf.default
           fi
 
-          # 动态管理 feeds.conf.default
-          NIKKI_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_nikki", False))' 2>/dev/null || echo 'False')
-          if [ "$NIKKI_ENABLED" != "True" ] && [ "$NIKKI_ENABLED" != "true" ]; then
-            echo "🔧 禁用 nikki feed..."
-            sed -i '/src-git nikki/d' feeds.conf.default
-            sed -i '/nikki/d' feeds.conf.default
-          fi
-
-          QN_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_qmodem_next", False))' 2>/dev/null || echo 'False')
-          Q_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_qmodem", False))' 2>/dev/null || echo 'False')
-          
-          if [[ "$QN_ENABLED" != "True" && "$QN_ENABLED" != "true" ]] && [[ "$Q_ENABLED" != "True" && "$Q_ENABLED" != "true" ]]; then
-            echo "🔧 禁用 qmodem feed..."
-            sed -i '/qmodem/d' feeds.conf.default
-          fi
-
           echo "📋 当前 feeds.conf.default 内容:"
           cat feeds.conf.default
 
           echo "🧹 清理 feeds 缓存..."
           rm -rf tmp/.config* tmp/.packageinfo tmp/.targetinfo tmp/info tmp/.feeds* 2>/dev/null || true
           
-          [ "$NIKKI_ENABLED" != "true" ] && rm -rf feeds/nikki* package/feeds/nikki 2>/dev/null || true
-          [ "$QN_ENABLED" != "true" ] && [ "$Q_ENABLED" != "true" ] && rm -rf feeds/qmodem* package/feeds/qmodem 2>/dev/null || true
-
           echo "🔄 更新 feeds..."
           ./scripts/feeds update -a -j $(nproc) || true
           ./scripts/feeds install -a -f -j $(nproc) || true
@@ -448,20 +242,9 @@ jobs:
             git clone https://github.com/sirpdboy/luci-app-netspeedtest.git -b master package/luci-app-netspeedtest
           fi
           
-          AT_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_at_webserver", False))' 2>/dev/null || echo 'False')
-          if [[ "$AT_ENABLED" == "True" || "$AT_ENABLED" == "true" ]] && [ ! -d "package/luci-app-at-webserver" ]; then
-            git clone https://github.com/inotdream/mt5700webui-openwrt-server.git -b main package/luci-app-at-webserver
-          fi
-          
           LUCKY_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_lucky", False))' 2>/dev/null || echo 'False')
           if [[ "$LUCKY_ENABLED" == "True" || "$LUCKY_ENABLED" == "true" ]] && [ ! -d "package/luci-app-lucky" ]; then
             git clone https://github.com/gdy666/luci-app-lucky.git -b main package/luci-app-lucky
-          fi
-          
-          DAED_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_daed", False))' 2>/dev/null || echo 'False')
-          if [[ "$DAED_ENABLED" == "True" || "$DAED_ENABLED" == "true" ]] && [ ! -d "package/dae" ]; then
-            git clone https://github.com/QiuSimons/luci-app-daed.git package/dae
-            sudo npm install -g pnpm
           fi
 
       - name: 下载 Release 软件包并准备自动安装
@@ -521,73 +304,7 @@ jobs:
             sed -i 's|PKG_MIRROR_HASH:=.*|PKG_MIRROR_HASH:=skip|g' "$EBTABLES_MAKEFILE"
           fi
           
-          # 修复 QMI WWAN 驱动 (Linux 6.6 兼容性)
-          fix_qmi_driver() {
-            local SOURCE_FILE="$1"
-            if [ -f "$SOURCE_FILE" ]; then
-              sed -i 's/u64_stats_fetch_begin_irq/u64_stats_fetch_begin/g' "$SOURCE_FILE"
-              sed -i 's/u64_stats_fetch_retry_irq/u64_stats_fetch_retry/g' "$SOURCE_FILE"
-              if grep -q 'memcpy.*qmap_net->dev_addr.*real_dev->dev_addr' "$SOURCE_FILE"; then
-                sed -i 's/memcpy[[:space:]]*(qmap_net->dev_addr,[[:space:]]*real_dev->dev_addr,[[:space:]]*ETH_ALEN);/eth_hw_addr_set(qmap_net, real_dev->dev_addr);/g' "$SOURCE_FILE"
-              fi
-            fi
-          }
-          
-          fix_qmi_driver "package/mtk/applications/5g-modem/fibocom_QMI_WWAN/qmi_wwan_f.c"
-          fix_qmi_driver "package/mtk/applications/5g-modem/fibocom_QMI_WWAN/src/qmi_wwan_f.c"
-          fix_qmi_driver "package/mtk/applications/5g-modem/quectel_QMI_WWAN/qmi_wwan_q.c"
-          fix_qmi_driver "package/mtk/applications/5g-modem/quectel_QMI_WWAN/src/qmi_wwan_q.c"
-          fix_qmi_driver "package/mtk/applications/5g-modem/simcom_QMI_WWAN/qmi_wwan_s.c"
-          fix_qmi_driver "package/mtk/applications/5g-modem/simcom_QMI_WWAN/src/qmi_wwan_s.c"
-          
-          if [ -d "feeds/qmodem" ]; then
-            for driver_file in $(find feeds/qmodem -name "*.c" -type f 2>/dev/null | xargs grep -l "u64_stats_fetch_begin_irq\|memcpy.*dev_addr" 2>/dev/null || true); do
-              fix_qmi_driver "$driver_file"
-            done
-          fi
-          
-          # AdGuardHome
-          AGH_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_adguardhome", False))' 2>/dev/null || echo 'False')
-          if [[ "$AGH_ENABLED" == "True" || "$AGH_ENABLED" == "true" ]]; then
-            [ ! -d "package/luci-app-adguardhome" ] && \
-              git clone --depth=1 https://github.com/kongfl888/luci-app-adguardhome.git package/luci-app-adguardhome
-            
-            AGH_LUCI_SCRIPT="package/luci-app-adguardhome/root/usr/share/AdGuardHome/links.sh"
-            [ -f "$AGH_LUCI_SCRIPT" ] && sed -i 's|mv /usr/bin/AdGuardHome/AdGuardHome|rm -rf /usr/bin/AdGuardHome 2>/dev/null; mkdir -p /usr/bin/AdGuardHome; mv /tmp/AdGuardHomeupdate/AdGuardHome_linux_*/AdGuardHome|g' "$AGH_LUCI_SCRIPT" || true
-            AGH_LUCI_INIT="package/luci-app-adguardhome/root/etc/init.d/AdGuardHome"
-            [ -f "$AGH_LUCI_INIT" ] && sed -i '/^#!/a\
-            [ -f /usr/bin/AdGuardHome ] && rm -f /usr/bin/AdGuardHome && mkdir -p /usr/bin/AdGuardHome' "$AGH_LUCI_INIT" || true
-          fi
-
-          # Adbyby Plus Lite
-          ADBYBY_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_adbyby_plus", False))' 2>/dev/null || echo 'False')
-          if [[ "$ADBYBY_ENABLED" == "True" || "$ADBYBY_ENABLED" == "true" ]]; then
-            if [ ! -d "package/luci-app-adbyby-plus" ]; then
-              git clone --depth=1 --recurse-submodules https://github.com/kongfl888/luci-app-adbyby-plus-lite.git /tmp/adbyby-plus-lite
-              cp -r /tmp/adbyby-plus-lite/luci-app-adbyby-plus package/luci-app-adbyby-plus
-              rm -rf /tmp/adbyby-plus-lite
-            fi
-            echo "CONFIG_PACKAGE_ipset=y" >> .config 2>/dev/null || true
-          fi
-
-          # MosDNS
-          if [ "$(jq -r '.enable_mosdns // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ]; then
-            if [ ! -d "feeds/packages/lang/golang" ] || [ ! -f "feeds/packages/lang/golang/Makefile" ]; then
-              rm -rf feeds/packages/lang/golang
-              git clone https://github.com/sbwml/packages_lang_golang -b 24.x feeds/packages/lang/golang
-            fi
-            rm -rf feeds/packages/net/v2ray-geodata
-            [ ! -d "package/mosdns" ] && git clone https://github.com/sbwml/luci-app-mosdns -b v5 package/mosdns
-            [ ! -d "package/v2ray-geodata" ] && git clone https://github.com/sbwml/v2ray-geodata package/v2ray-geodata
-            echo "CONFIG_PACKAGE_luci-i18n-mosdns-zh-cn=y" >> .config
-          fi
-          
           rm -rf package/feeds/packages/{exim,onionshare-cli,python-zope-event,python-zope-interface,python-gevent,python-twisted} 2>/dev/null || true
-
-          if [ -d "package/feeds/qmodem" ]; then
-            rm -rf package/feeds/qmodem/ndisc6 2>/dev/null || true
-            find . -path "*qmodem*Makefile" -exec sed -i 's/+\?kmod-mhi-wwan//g' {} \; 2>/dev/null || true
-          fi
 
           [ -f "package/mtk/drivers/mt_hwifi/Makefile" ] && sed -i 's/+kmod-mt_wifi_osal//g' "package/mtk/drivers/mt_hwifi/Makefile" || true
 
@@ -611,33 +328,6 @@ jobs:
         run: |
           cd $SOURCE_DIR
           echo "⚙️ 配置构建选项..."
-
-          # 从 plugins.json 读取开关并验证互斥
-          CFG="$GITHUB_WORKSPACE/config/plugins.json"
-          eval $(python3 -c 'import json, os
-          try:
-              cfg_path = os.environ.get("CFG")
-              if os.path.exists(cfg_path):
-                  with open(cfg_path) as f:
-                      data = json.load(f)
-                      print(f"EN_QN={str(data.get(\"enable_qmodem_next\", False)).lower()}")
-                      print(f"EN_Q={str(data.get(\"enable_qmodem\", False)).lower()}")
-                      print(f"EN_OM={str(data.get(\"enable_original_modem\", False)).lower()}")
-          except Exception:
-              print("EN_QN=false")
-              print("EN_Q=false")
-              print("EN_OM=false")
-          ')
-
-          if [ "$EN_QN" = "true" ] && [ "$EN_Q" = "true" ]; then
-            echo "❌ 错误: 不能同时启用 QModem Next 和 QModem！"; exit 1
-          fi
-          if [ "$EN_OM" = "true" ] && [ "$EN_QN" = "true" ]; then
-            echo "❌ 错误: 不能同时启用原版 Modem 和 QModem Next！"; exit 1
-          fi
-          if [ "$EN_OM" = "true" ] && [ "$EN_Q" = "true" ]; then
-            echo "❌ 错误: 不能同时启用原版 Modem 和 QModem！"; exit 1
-          fi
 
           # 下载基础配置
           curl -fsSL "$CONFIG_URL" -o base.config || {
@@ -663,96 +353,16 @@ jobs:
             name="${key#enable_}"
             case "$name" in
               easytier|bandix) ;;
-              nikki)
-                echo "CONFIG_PACKAGE_nikki=y" >> .config
-                echo "CONFIG_PACKAGE_luci-app-nikki=y" >> .config
-                echo "CONFIG_PACKAGE_luci-i18n-nikki-zh-cn=y" >> .config
-                echo "CONFIG_PACKAGE_ca-bundle=y" >> .config
-                echo "CONFIG_PACKAGE_curl=y" >> .config
-                echo "CONFIG_PACKAGE_yq=y" >> .config
-                echo "CONFIG_PACKAGE_firewall4=y" >> .config
-                echo "CONFIG_PACKAGE_ip-full=y" >> .config
-                echo "CONFIG_PACKAGE_kmod-inet-diag=y" >> .config
-                echo "CONFIG_PACKAGE_kmod-nft-socket=y" >> .config
-                echo "CONFIG_PACKAGE_kmod-nft-tproxy=y" >> .config
-                echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
-                ;;
               openclash)
                 echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
-                ;;
-              adbyby_plus)
-                echo "CONFIG_PACKAGE_luci-app-adbyby-plus=y" >> .config
-                echo "CONFIG_PACKAGE_luci-i18n-adbyby-plus-zh-cn=y" >> .config
-                echo "CONFIG_PACKAGE_ipset=y" >> .config
-                ;;
-              original_modem)
-                echo "CONFIG_PACKAGE_luci-app-modem=y" >> .config
-                echo "CONFIG_PACKAGE_modem=y" >> .config
-                echo "CONFIG_PACKAGE_luci-i18n-modem-zh-cn=y" >> .config
-                echo "# CONFIG_PACKAGE_luci-app-qmodem-next is not set" >> .config
-                echo "# CONFIG_PACKAGE_luci-app-qmodem is not set" >> .config
-                echo "# CONFIG_PACKAGE_qmodem is not set" >> .config
-                ;;
-              qmodem_next)
-                echo "CONFIG_PACKAGE_luci-app-qmodem-next=y" >> .config
-                echo "CONFIG_PACKAGE_luci-i18n-qmodem-next-zh-cn=y" >> .config
-                echo "# CONFIG_PACKAGE_luci-app-qmodem is not set" >> .config
-                echo "# CONFIG_PACKAGE_qmodem is not set" >> .config
-                echo "# CONFIG_PACKAGE_luci-app-modem is not set" >> .config
-                ;;
-              qmodem)
-                echo "CONFIG_PACKAGE_luci-app-qmodem=y" >> .config
-                echo "CONFIG_PACKAGE_luci-compat=y" >> .config
-                echo "CONFIG_PACKAGE_qmodem=y" >> .config
-                echo "# CONFIG_PACKAGE_luci-app-qmodem-next is not set" >> .config
-                echo "# CONFIG_PACKAGE_luci-app-modem is not set" >> .config
-                echo "CONFIG_PACKAGE_luci-app-qmodem_INCLUDE_vendor-qmi-wwan=y" >> .config
-                echo "# CONFIG_PACKAGE_luci-app-qmodem_INCLUDE_generic-qmi-wwan is not set" >> .config
-                echo "CONFIG_PACKAGE_luci-app-qmodem_INCLUDE_ndisc6=y" >> .config
-                echo "CONFIG_PACKAGE_ndisc6=y" >> .config
-                echo "CONFIG_PACKAGE_quectel-CM-5G-M=y" >> .config
-                echo "CONFIG_PACKAGE_sms-tool_q=y" >> .config
-                echo "CONFIG_PACKAGE_ubus-at-daemon=y" >> .config
-                echo "CONFIG_PACKAGE_tom_modem=y" >> .config
-                echo "CONFIG_PACKAGE_luci-app-qmodem-sms=y" >> .config
-                echo "CONFIG_PACKAGE_kmod-qmi_wwan_q=y" >> .config
-                echo "CONFIG_PACKAGE_kmod-qmi_wwan_f=y" >> .config
-                echo "CONFIG_PACKAGE_kmod-qmi_wwan_s=y" >> .config
-                ;;
-              mwan)
-                echo "CONFIG_PACKAGE_mwan3=y" >> .config
-                echo "CONFIG_PACKAGE_luci-app-mwan3=y" >> .config
-                ;;
-              zerotier)
-                echo "CONFIG_PACKAGE_zerotier=y" >> .config
-                echo "CONFIG_PACKAGE_luci-app-zerotier=y" >> .config
-                echo "CONFIG_PACKAGE_luci-i18n-zerotier-zh-cn=y" >> .config
-                ;;
-              wrtbwmon)
-                echo "CONFIG_PACKAGE_wrtbwmon=y" >> .config
-                echo "CONFIG_PACKAGE_luci-app-wrtbwmon=y" >> .config
-                echo "CONFIG_PACKAGE_luci-i18n-wrtbwmon-zh-cn=y" >> .config
-                ;;
-              watchcat)
-                echo "CONFIG_PACKAGE_watchcat=y" >> .config
-                echo "CONFIG_PACKAGE_luci-app-watchcat=y" >> .config
-                echo "CONFIG_PACKAGE_luci-i18n-watchcat-zh-cn=y" >> .config
                 ;;
               netspeedtest)
                 echo "CONFIG_PACKAGE_luci-app-netspeedtest=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-netspeedtest-zh-cn=y" >> .config
                 ;;
-              at_webserver)
-                echo "CONFIG_PACKAGE_luci-app-at-webserver=y" >> .config
-                echo "CONFIG_PACKAGE_luci-i18n-at-webserver-zh-cn=y" >> .config
-                ;;
               lucky)
                 echo "CONFIG_PACKAGE_luci-app-lucky=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-lucky-zh-cn=y" >> .config
-                ;;
-              adguardhome|mosdns|dockerman|homeproxy|upnp|vlmcsd)
-                echo "CONFIG_PACKAGE_luci-app-${name}=y" >> .config
-                echo "CONFIG_PACKAGE_luci-i18n-${name}-zh-cn=y" >> .config || true
                 ;;
               *)
                 echo "CONFIG_PACKAGE_luci-app-${name}=y" >> .config
@@ -765,7 +375,7 @@ jobs:
             cat "$GITHUB_WORKSPACE/xr30.extra.config" >> .config
           fi
 
-          all_disabled=("luci-app-sms-tool-lite" "luci-app-3ginfo-lite" "luci-theme-bootstrap" "luci-app-wrtbwmon" "luci-app-eqos" "luci-app-eqos-mtk")
+          all_disabled=("luci-theme-bootstrap-mod" "luci-app-wrtbwmon" "luci-app-eqos-mtk" "luci-i18n-eqos-mtk-zh-cn" "luci-app-sms-tool-lite" "luci-app-3ginfo-lite")
           for pkg in "${all_disabled[@]}"; do
              sed -i "/^CONFIG_PACKAGE_${pkg}=/d" .config
              echo "# CONFIG_PACKAGE_${pkg} is not set" >> .config
