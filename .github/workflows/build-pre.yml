@@ -332,7 +332,28 @@ jobs:
           for key in $TRUE_KEYS; do
             name="${key#enable_}"
             case "$name" in
-              easytier|bandix) ;;
+              easytier) ;;
+              bandix)
+                echo "CONFIG_PACKAGE_zoneinfo-all=y" >> .config
+                echo "CONFIG_PACKAGE_zoneinfo-core=y" >> .config
+                echo "CONFIG_PACKAGE_zoneinfo-europe=y" >> .config
+                echo "CONFIG_PACKAGE_zoneinfo-africa=y" >> .config
+                echo "CONFIG_PACKAGE_zoneinfo-america=y" >> .config
+                echo "CONFIG_PACKAGE_zoneinfo-poles=y" >> .config
+                echo "CONFIG_PACKAGE_zoneinfo-asia=y" >> .config
+                echo "CONFIG_PACKAGE_zoneinfo-atlantic=y" >> .config
+                echo "CONFIG_PACKAGE_zoneinfo-australia-nz=y" >> .config
+                echo "CONFIG_PACKAGE_zoneinfo-pacific=y" >> .config
+                echo "CONFIG_PACKAGE_zoneinfo-indian=y" >> .config
+                echo "CONFIG_PACKAGE_libnetfilter-queue1=y" >> .config
+                echo "CONFIG_PACKAGE_libnetfilter-cttimeout1=y" >> .config
+                echo "CONFIG_PACKAGE_libnetfilter-cthelper0=y" >> .config
+                echo "CONFIG_PACKAGE_conntrack=y" >> .config
+                echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
+                echo "CONFIG_PACKAGE_libstdcpp=y" >> .config
+                echo "CONFIG_PACKAGE_libpthread=y" >> .config
+                echo "CONFIG_PACKAGE_librt=y" >> .config
+                ;;
               openclash)
                 echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
                 ;;

@@ -927,8 +927,55 @@ jobs:
           for key in $TRUE_KEYS; do
             name="${key#enable_}"
             case "$name" in
-              easytier|bandix)
+              easytier)
                 echo "ℹ️ $name 通过离线包安装，关联依赖在构建前置已处理"
+                ;;
+              bandix)
+                echo "CONFIG_PACKAGE_zoneinfo-all=y" >> .config
+                echo "CONFIG_PACKAGE_zoneinfo-core=y" >> .config
+                echo "CONFIG_PACKAGE_zoneinfo-europe=y" >> .config
+                echo "CONFIG_PACKAGE_zoneinfo-africa=y" >> .config
+                echo "CONFIG_PACKAGE_zoneinfo-america=y" >> .config
+                echo "CONFIG_PACKAGE_zoneinfo-poles=y" >> .config
+                echo "CONFIG_PACKAGE_zoneinfo-asia=y" >> .config
+                echo "CONFIG_PACKAGE_zoneinfo-atlantic=y" >> .config
+                echo "CONFIG_PACKAGE_zoneinfo-australia-nz=y" >> .config
+                echo "CONFIG_PACKAGE_zoneinfo-pacific=y" >> .config
+                echo "CONFIG_PACKAGE_zoneinfo-indian=y" >> .config
+                echo "CONFIG_PACKAGE_libnetfilter-queue1=y" >> .config
+                echo "CONFIG_PACKAGE_libnetfilter-cttimeout1=y" >> .config
+                echo "CONFIG_PACKAGE_libnetfilter-cthelper0=y" >> .config
+                echo "CONFIG_PACKAGE_conntrack=y" >> .config
+                echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
+                echo "CONFIG_PACKAGE_libstdcpp=y" >> .config
+                echo "CONFIG_PACKAGE_libpthread=y" >> .config
+                echo "CONFIG_PACKAGE_librt=y" >> .config
+                ;;
+              daed)
+                echo "CONFIG_PACKAGE_luci-app-daed=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-daed-zh-cn=y" >> .config
+                echo "CONFIG_DEVEL=y" >> .config
+                echo "CONFIG_KERNEL_DEBUG_INFO=y" >> .config
+                echo "CONFIG_KERNEL_DEBUG_INFO_REDUCED=n" >> .config
+                echo "CONFIG_KERNEL_DEBUG_INFO_BTF=y" >> .config
+                echo "CONFIG_KERNEL_CGROUPS=y" >> .config
+                echo "CONFIG_KERNEL_CGROUP_BPF=y" >> .config
+                echo "CONFIG_KERNEL_BPF_EVENTS=y" >> .config
+                echo "CONFIG_BPF_TOOLCHAIN_HOST=y" >> .config
+                echo "CONFIG_KERNEL_XDP_SOCKETS=y" >> .config
+                echo "CONFIG_PACKAGE_kmod-xdp-sockets-diag=y" >> .config
+                echo "CONFIG_PACKAGE_kmod-sched-bpf=y" >> .config
+                echo "CONFIG_KERNEL_BPF=y" >> .config
+                echo "CONFIG_KERNEL_BPF_SYSCALL=y" >> .config
+                echo "CONFIG_KERNEL_BPF_JIT=y" >> .config
+                echo "CONFIG_KERNEL_KPROBES=y" >> .config
+                echo "CONFIG_KERNEL_NET_INGRESS=y" >> .config
+                echo "CONFIG_KERNEL_NET_EGRESS=y" >> .config
+                echo "CONFIG_KERNEL_NET_SCH_INGRESS=m" >> .config
+                echo "CONFIG_KERNEL_NET_CLS_BPF=m" >> .config
+                echo "CONFIG_KERNEL_NET_CLS_ACT=y" >> .config
+                echo "CONFIG_KERNEL_BPF_STREAM_PARSER=y" >> .config
+                echo "CONFIG_KERNEL_KPROBE_EVENTS=y" >> .config
                 ;;
               nikki)
                 echo "CONFIG_PACKAGE_nikki=y" >> .config
