@@ -127,7 +127,7 @@ permissions:
 env:
   REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6.git
   REPO_BRANCH: openwrt-24.10-6.6
-  CONFIG_URL: https://raw.githubusercontent.com/padavanonly/immortalwrt-mt798x-6.6/refs/heads/openwrt-24.10-6.6/defconfig/mt7987_mt7992.config
+  CONFIG_URL: https://raw.githubusercontent.com/padavanonly/immortalwrt-mt798x-6.6/refs/heads/openwrt-24.10-6.6/defconfig/mt7981-ax3000.config
   SOURCE_DIR: immortalwrt
   TZ: Asia/Shanghai
 
@@ -363,7 +363,7 @@ jobs:
             ${{ env.SOURCE_DIR }}/dl
             ${{ env.SOURCE_DIR }}/staging_dir
             ~/.ccache
-          key: ${{ runner.os }}-build-xr30-${{ env.REPO_BRANCH }}-${{ hashFiles('feeds.conf.default', 'h5000m.extra.config') }}
+          key: ${{ runner.os }}-build-xr30-${{ env.REPO_BRANCH }}-${{ hashFiles('feeds.conf.default', 'xr30.extra.config') }}
           restore-keys: |
             ${{ runner.os }}-build-xr30-${{ env.REPO_BRANCH }}-
 
@@ -760,8 +760,9 @@ jobs:
             esac
           done
 
-          if [ -f "$GITHUB_WORKSPACE/h5000m.extra.config" ]; then
-            cat "$GITHUB_WORKSPACE/h5000m.extra.config" >> .config
+          # 应用额外配置
+          if [ -f "$GITHUB_WORKSPACE/xr30.extra.config" ]; then
+            cat "$GITHUB_WORKSPACE/xr30.extra.config" >> .config
           fi
 
           all_disabled=("luci-app-sms-tool-lite" "luci-app-3ginfo-lite" "luci-theme-bootstrap" "luci-app-wrtbwmon" "luci-app-eqos" "luci-app-eqos-mtk")
@@ -784,7 +785,7 @@ jobs:
 
       - name: 打包源码
         run: |
-          tar --exclude="$SOURCE_DIR/build_dir" --exclude="$SOURCE_DIR/tmp" -czf source.tar.gz $SOURCE_DIR $GITHUB_WORKSPACE/h5000m.extra.config $GITHUB_WORKSPACE/feeds.conf.default 2>/dev/null || true
+          tar --exclude="$SOURCE_DIR/build_dir" --exclude="$SOURCE_DIR/tmp" -czf source.tar.gz $SOURCE_DIR $GITHUB_WORKSPACE/xr30.extra.config $GITHUB_WORKSPACE/feeds.conf.default 2>/dev/null || true
 
       - name: 缓存插件配置保存
         uses: actions/cache/save@v4
