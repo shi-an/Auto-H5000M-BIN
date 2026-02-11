@@ -11,7 +11,7 @@ on:
       enable_openclash:
         description: '启用 OpenClash'
         required: false
-        default: false
+        default: true
         type: boolean
       enable_nikki:
         description: '启用 Nikki'
@@ -71,7 +71,7 @@ on:
       enable_netspeedtest:
         description: '启用 netspeedtest'
         required: false
-        default: false
+        default: true
         type: boolean
       enable_at_webserver:
         description: '启用 at-webserver'
@@ -96,17 +96,17 @@ on:
       enable_easytier:
         description: '启用 easytier'
         required: false
-        default: false
+        default: true
         type: boolean
       enable_lucky:
         description: '启用 lucky'
         required: false
-        default: false
+        default: true
         type: boolean
       enable_bandix:
         description: '启用 Bandix'
         required: false
-        default: false
+        default: true
         type: boolean
       enable_daed:
         description: '启用 daed'
@@ -764,7 +764,7 @@ jobs:
             cat "$GITHUB_WORKSPACE/h5000m.extra.config" >> .config
           fi
 
-          all_disabled=("luci-app-sms-tool-lite" "luci-app-3ginfo-lite")
+          all_disabled=("luci-app-sms-tool-lite" "luci-app-3ginfo-lite" "luci-theme-bootstrap" "luci-app-wrtbwmon" "luci-app-eqos" "luci-app-eqos-mtk")
           for pkg in "${all_disabled[@]}"; do
              sed -i "/^CONFIG_PACKAGE_${pkg}=/d" .config
              echo "# CONFIG_PACKAGE_${pkg} is not set" >> .config
