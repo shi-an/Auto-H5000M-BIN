@@ -635,6 +635,19 @@ jobs:
           if [ "$(jq -r '.enable_bandix // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ]; then
               echo "CONFIG_PACKAGE_zoneinfo-all=y" >> features.config
               echo "CONFIG_PACKAGE_zoneinfo-core=y" >> features.config
+              echo "CONFIG_PACKAGE_zoneinfo-europe=y" >> features.config
+              echo "CONFIG_PACKAGE_zoneinfo-africa=y" >> features.config
+              echo "CONFIG_PACKAGE_zoneinfo-america=y" >> features.config
+              echo "CONFIG_PACKAGE_zoneinfo-poles=y" >> features.config
+              echo "CONFIG_PACKAGE_zoneinfo-asia=y" >> features.config
+              echo "CONFIG_PACKAGE_zoneinfo-atlantic=y" >> features.config
+              echo "CONFIG_PACKAGE_zoneinfo-australia-nz=y" >> features.config
+              echo "CONFIG_PACKAGE_zoneinfo-pacific=y" >> features.config
+              echo "CONFIG_PACKAGE_zoneinfo-indian=y" >> features.config
+              echo "CONFIG_PACKAGE_libnetfilter-queue1=y" >> features.config
+              echo "CONFIG_PACKAGE_libnetfilter-cttimeout1=y" >> features.config
+              echo "CONFIG_PACKAGE_libnetfilter-cthelper0=y" >> features.config
+              echo "CONFIG_PACKAGE_conntrack=y" >> features.config
               echo "CONFIG_PACKAGE_kmod-tun=y" >> features.config
               echo "CONFIG_PACKAGE_libstdcpp=y" >> features.config
               echo "CONFIG_PACKAGE_libpthread=y" >> features.config
@@ -663,6 +676,7 @@ jobs:
               echo "CONFIG_BPF_TOOLCHAIN_HOST=y" >> features.config
               echo "CONFIG_KERNEL_XDP_SOCKETS=y" >> features.config
               echo "CONFIG_PACKAGE_kmod-xdp-sockets-diag=y" >> features.config
+              echo "CONFIG_PACKAGE_kmod-sched-bpf=y" >> features.config
           fi
           
           if [ "$(jq -r '.enable_nikki // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ]; then
