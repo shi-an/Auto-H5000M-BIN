@@ -9,6 +9,10 @@ artifacts/
 *.log
 *.bak
 
+# 本地构建脚本
+local_build.sh
+workspace/
+
 # 系统文件
 .DS_Store
 Thumbs.db
