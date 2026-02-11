@@ -1014,17 +1014,12 @@ jobs:
 
           # 硬编码指定插件已移至 h5000m.extra.config 文件
 
-          # 统一禁用不需要的包（可根据需要补充）
-          disabled_pkgs=("luci-app-sms-tool-lite" "luci-app-3ginfo-lite")
-
           # 统一禁用不需要的包
-          all_disabled=("luci-app-wrtbwmon" "luci-app-rclone" "rclone" "rclone-ng" "rclone-webui-react" "luci-app-modem" "luci-app-sms-tool-lite" "luci-app-3ginfo-lite" "luci-app-qmodem" "qmodem")
+          # 仅保留必须要强制禁用的冲突包或无用包，其余包交由 .config 动态管理
+          all_disabled=("luci-app-sms-tool-lite" "luci-app-3ginfo-lite")
           for pkg in "${all_disabled[@]}"; do
-            # 如果该包没有被显式设置为=y，则禁用它
-            if ! grep -q "^CONFIG_PACKAGE_${pkg}=y" .config; then
-              sed -i "/^CONFIG_PACKAGE_${pkg}=/d" .config
-              echo "# CONFIG_PACKAGE_${pkg} is not set" >> .config
-            fi
+             sed -i "/^CONFIG_PACKAGE_${pkg}=/d" .config
+             echo "# CONFIG_PACKAGE_${pkg} is not set" >> .config
           done
 
           # 自动解析依赖
