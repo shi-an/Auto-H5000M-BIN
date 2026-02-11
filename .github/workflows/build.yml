@@ -1180,9 +1180,6 @@ jobs:
 
       - name: 动态生成Release信息
         run: |
-          echo "🔍 调试：检查 config 目录"
-          ls -R "$GITHUB_WORKSPACE/config" || echo "config 目录不存在"
-          
           cd $SOURCE_DIR
           echo "🎉 **ImmortalWrt H5000M 固件已构建完成**" > release_body.md
           echo "" >> release_body.md
@@ -1190,16 +1187,23 @@ jobs:
           echo "🔗 运行 ID: ${{ github.run_id }}" >> release_body.md
           echo "" >> release_body.md
           echo "**⚙️ 启用的功能:**" >> release_body.md
-          jq -r '
-            to_entries
-            | map(select(.key | startswith("enable_") and .value==true))
-            | .[].key
-            | sub("^enable_"; "")
-            | split("_")
-            | map(. as $s | ($s[0:1]|ascii_upcase) + $s[1:])
-            | join(" ")
-            | "- ✅ " + .
-          ' "$GITHUB_WORKSPACE/config/plugins.json" >> release_body.md
+          
+          # 使用 Python 解析 JSON 生成功能列表，避免 jq 兼容性问题
+          python3 -c 'import json, os
+          try:
+              cfg_path = os.path.join(os.environ.get("GITHUB_WORKSPACE"), "config/plugins.json")
+              if os.path.exists(cfg_path):
+                  with open(cfg_path) as f:
+                      data = json.load(f)
+                      for k, v in data.items():
+                          if k.startswith("enable_") and (v is True or str(v).lower() == "true"):
+                              # 处理名称：移除 enable_ 前缀，下划线转空格，单词首字母大写
+                              name = k[7:].replace("_", " ").title()
+                              print(f"- ✅ {name}")
+          except Exception as e:
+              print(f"- ⚠️ 无法解析功能列表: {e}")
+          ' >> release_body.md
+          
           echo "" >> release_body.md
           echo "💾 下载产物: 见下方 Artifacts" >> release_body.md
           echo "📋 详细信息: 见 MANIFEST.txt" >> release_body.md
