@@ -481,7 +481,7 @@ jobs:
           AT_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_at_webserver", False))' 2>/dev/null || echo 'False')
           if [[ "$AT_ENABLED" == "True" || "$AT_ENABLED" == "true" ]] && [ ! -d "package/luci-app-at-webserver" ]; then
             echo "📥 克隆 at-webserver 仓库..."
-            git clone https://github.com/inotdream/mt5700webui-openwrt-server.git -b main package/luci-app-at-webserver
+            git clone https://github.com/shi-an/mt5700webui-openwrt-server.git -b main package/luci-app-at-webserver
             if [ $? -ne 0 ]; then
               echo "❌ at-webserver 仓库克隆失败"
               exit 1
