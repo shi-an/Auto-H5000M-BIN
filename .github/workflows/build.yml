@@ -852,9 +852,22 @@ jobs:
 
           # 从 plugins.json 读取开关并验证互斥
           CFG="$GITHUB_WORKSPACE/config/plugins.json"
-          EN_QN=$(jq -r '.enable_qmodem_next // false' "$CFG")
-          EN_Q=$(jq -r '.enable_qmodem // false' "$CFG")
-          EN_OM=$(jq -r '.enable_original_modem // false' "$CFG")
+          # 使用 Python 提取开关状态，避免 jq 兼容性问题
+          eval $(python3 -c 'import json, os
+          try:
+              cfg_path = os.environ.get("CFG")
+              if os.path.exists(cfg_path):
+                  with open(cfg_path) as f:
+                      data = json.load(f)
+                      print(f"EN_QN={str(data.get(\"enable_qmodem_next\", False)).lower()}")
+                      print(f"EN_Q={str(data.get(\"enable_qmodem\", False)).lower()}")
+                      print(f"EN_OM={str(data.get(\"enable_original_modem\", False)).lower()}")
+          except Exception:
+              print("EN_QN=false")
+              print("EN_Q=false")
+              print("EN_OM=false")
+          ')
+
           if [ "$EN_QN" = "true" ] && [ "$EN_Q" = "true" ]; then
             echo "❌ 错误: 不能同时启用 QModem Next 和 QModem！"
             exit 1
@@ -929,6 +942,10 @@ jobs:
                 echo "CONFIG_PACKAGE_luci-app-modem=y" >> .config
                 echo "CONFIG_PACKAGE_modem=y" >> .config
                 echo "CONFIG_PACKAGE_luci-i18n-modem-zh-cn=y" >> .config
+                # 显式禁用冲突包
+                echo "# CONFIG_PACKAGE_luci-app-qmodem-next is not set" >> .config
+                echo "# CONFIG_PACKAGE_luci-app-qmodem is not set" >> .config
+                echo "# CONFIG_PACKAGE_qmodem is not set" >> .config
                 ;;
               qmodem_next)
                 echo "CONFIG_PACKAGE_luci-app-qmodem-next=y" >> .config
