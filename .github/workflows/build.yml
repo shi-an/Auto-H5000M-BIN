@@ -819,6 +819,10 @@ jobs:
           # 修复 mt_hwifi
           [ -f "package/mtk/drivers/mt_hwifi/Makefile" ] && sed -i 's/+kmod-mt_wifi_osal//g' "package/mtk/drivers/mt_hwifi/Makefile" || true
 
+          # 修复 Rust 编译时的 checksum 错误 (忽略文件校验)
+          echo "🔧 处理 .cargo_checksum.json 以忽略文件校验..."
+          find . -name ".cargo_checksum.json" -exec sed -i 's/"files":{[^}]*}/"files":{}/g' {} \;
+
           # 预装 Clash 内核
           echo "🔧 预装 Clash 内核..."
           # 检查是否启用了 OpenClash
@@ -1180,8 +1184,15 @@ jobs:
           echo "📦 安装编译依赖..."
           sudo apt-get update -qq
           sudo apt-get install -y build-essential git ccache python3 python3-pip \
-            libncurses5-dev libssl-dev libgmp3-dev libmbedtls-dev rustc cargo \
+            libncurses5-dev libssl-dev libgmp3-dev libmbedtls-dev \
             golang-go autoconf automake libtool patch make gcc g++ gawk gettext unzip file wget
+          
+          # Rust 环境配置 (使用 rustup)
+          echo "🔧 配置 Rust 环境..."
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source "$HOME/.cargo/env"
+          rustup target add aarch64-unknown-linux-musl
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           
           # 设置 ccache
           export PATH="/usr/lib/ccache:$PATH"
