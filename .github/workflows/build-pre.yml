@@ -49,26 +49,75 @@ env:
   TZ: Asia/Shanghai
 
 jobs:
-  prepare:
+  build_firmware:
     runs-on: ubuntu-22.04
-    outputs:
-      enable_openclash: ${{ steps.set-env.outputs.enable_openclash }}
-      enable_netspeedtest: ${{ steps.set-env.outputs.enable_netspeedtest }}
-      enable_easytier: ${{ steps.set-env.outputs.enable_easytier }}
-      enable_lucky: ${{ steps.set-env.outputs.enable_lucky }}
-      enable_bandix: ${{ steps.set-env.outputs.enable_bandix }}
-      enable_upnp: ${{ steps.set-env.outputs.enable_upnp }}
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
+      - name: 深度清理磁盘空间
+        run: |
+          echo "🧹 执行深度清理以释放磁盘空间..."
+          docker rmi $(docker images -q) 2>/dev/null || true
+          docker system prune -f 2>/dev/null || true
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /etc/mysql /etc/php \
+            /usr/local/share/boost /usr/share/swift /opt/hostedtoolcache /usr/local/.ghcup \
+            /usr/local/graalvm /imagegeneration /usr/local/share /opt /var/cache/apt/archives/* \
+            /etc/apt/sources.list.d/* 2>/dev/null || true
+          sudo apt-get -y purge azure-cli* docker* ghc* zulu* hhvm* llvm* firefox* \
+            google* dotnet* aspnetcore* powershell* openjdk* adoptopenjdk* mysql* php* \
+            mongodb* moby* snap* 2>/dev/null || true
+          sudo apt-get autoremove --purge -y && sudo apt-get clean && sudo apt-get autoclean
+          sudo rm -rf /tmp/* /var/tmp/* /var/log/* ~/.cache/* 2>/dev/null || true
+          
+          AVAIL_GB=$(df -BG / | tail -1 | awk '{print $4}' | sed 's/G//')
+          echo "💾 可用磁盘空间: ${AVAIL_GB}GB"
+          if [ "$AVAIL_GB" -lt 6 ]; then
+            echo "❌ 磁盘空间不足，需要至少6GB"
+            exit 1
+          fi
+
+      - name: 安装编译依赖
+        run: |
+          echo "📦 安装编译依赖 (使用官方初始化脚本)..."
+          sudo apt-get update -qq
+          sudo apt-get install -y jq
+          curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh | sudo bash
+          
+          # 设置 ccache
+          echo "📦 设置 ccache..."
+          export PATH="/usr/lib/ccache:$PATH"
+          echo "PATH=/usr/lib/ccache:$PATH" >> $GITHUB_ENV
+          ccache --set-config=max_size=2G
+          ccache --version || true
+
+      - name: 恢复插件配置缓存
+        id: restore-config
+        uses: actions/cache/restore@v4
+        with:
+          path: config/plugins.json
+          key: plugins-config-xr30-latest
+          restore-keys: |
+            plugins-config-xr30-
+
+      - name: 恢复编译缓存
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.SOURCE_DIR }}/dl
+            ${{ env.SOURCE_DIR }}/staging_dir
+            ~/.ccache
+          key: ${{ runner.os }}-build-xr30-${{ env.REPO_BRANCH }}-${{ hashFiles('feeds.conf.default', 'xr30.extra.config') }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-build-xr30-${{ env.REPO_BRANCH }}-${{ hashFiles('feeds.conf.default', 'xr30.extra.config') }}-
+            ${{ runner.os }}-build-xr30-${{ env.REPO_BRANCH }}-
+
       - name: 设置环境变量
         id: set-env
         run: |
           echo "🔧 设置环境变量..."
-          
           mkdir -p config
           
           echo "🧭 手动触发，优先使用 UI 传入的 inputs"
@@ -87,7 +136,7 @@ jobs:
           : ${ENABLE_BANDIX:=false}
           : ${ENABLE_UPNP:=false}
           
-          # 输出配置
+          # 输出配置到 GITHUB_OUTPUT
           echo "enable_openclash=$ENABLE_OPENCLASH" >> $GITHUB_OUTPUT
           echo "enable_netspeedtest=$ENABLE_NETSPEEDTEST" >> $GITHUB_OUTPUT
           echo "enable_easytier=$ENABLE_EASYTIER" >> $GITHUB_OUTPUT
@@ -119,46 +168,19 @@ jobs:
           }
           EOF
           )
-          echo "$CURRENT_JSON" | python3 -c 'import sys, json; print(json.dumps({k: (str(v).lower() == "true") for k, v in json.load(sys.stdin).items()}, indent=2))' > config/plugins.json
+          # 使用 jq 生成规范的 plugins.json
+          echo "$CURRENT_JSON" | jq '
+            with_entries(select(.key | startswith("enable_"))
+            | .value = (
+                if (.value|type)=="string" then 
+                  (.value | ascii_downcase == "true")
+                else 
+                  .value 
+                end
+              )
+            )' > config/plugins.json
           echo "✅ plugins.json 已生成"
           cat config/plugins.json
-
-      - name: 环境准备和缓存设置
-        run: |
-          echo "🔧 准备构建环境 (XR30)..."
-
-          # 基础清理
-          sudo rm -rf /home/runner/actions-runner/cached/_diag/* 2>/dev/null || true
-          docker system prune -f 2>/dev/null || true
-
-          # 检查磁盘空间
-          AVAIL_GB=$(df -BG / | tail -1 | awk '{print $4}' | sed 's/G//')
-          echo "💾 可用磁盘空间: ${AVAIL_GB}GB"
-
-          if [ "$AVAIL_GB" -lt 6 ]; then
-            echo "❌ 磁盘空间不足，需要至少6GB"
-            exit 1
-          fi
-
-          # 使用官方环境初始化脚本
-          echo "📦 运行 ImmortalWrt 环境初始化脚本..."
-          curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh | sudo bash
-
-          # 设置 ccache
-          echo "📦 设置 ccache..."
-          export PATH="/usr/lib/ccache:$PATH"
-          ccache --version || true
-
-      - name: 恢复构建缓存
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ env.SOURCE_DIR }}/dl
-            ${{ env.SOURCE_DIR }}/staging_dir
-            ~/.ccache
-          key: ${{ runner.os }}-build-xr30-${{ env.REPO_BRANCH }}-${{ hashFiles('feeds.conf.default', 'xr30.extra.config') }}
-          restore-keys: |
-            ${{ runner.os }}-build-xr30-${{ env.REPO_BRANCH }}-
 
       - name: 源码和依赖准备
         run: |
@@ -217,12 +239,12 @@ jobs:
           cd $SOURCE_DIR
           echo "📥 克隆第三方仓库..."
           
-          NST_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_netspeedtest", False))' 2>/dev/null || echo 'False')
+          NST_ENABLED=$(jq -r '.enable_netspeedtest // false' "$GITHUB_WORKSPACE/config/plugins.json")
           if [[ "$NST_ENABLED" == "True" || "$NST_ENABLED" == "true" ]] && [ ! -d "package/luci-app-netspeedtest" ]; then
             git clone https://github.com/sirpdboy/luci-app-netspeedtest.git -b master package/luci-app-netspeedtest
           fi
           
-          LUCKY_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_lucky", False))' 2>/dev/null || echo 'False')
+          LUCKY_ENABLED=$(jq -r '.enable_lucky // false' "$GITHUB_WORKSPACE/config/plugins.json")
           if [[ "$LUCKY_ENABLED" == "True" || "$LUCKY_ENABLED" == "true" ]] && [ ! -d "package/luci-app-lucky" ]; then
             git clone https://github.com/gdy666/luci-app-lucky.git -b main package/luci-app-lucky
           fi
@@ -236,7 +258,7 @@ jobs:
           mkdir -p $INSTALL_DIR
           mkdir -p files/etc/uci-defaults
           
-          ET_ENABLED=$(python3 -c 'import json, os; print(json.load(open(os.environ["GITHUB_WORKSPACE"]+"/config/plugins.json")).get("enable_easytier", False))' 2>/dev/null || echo 'False')
+          ET_ENABLED=$(jq -r '.enable_easytier // false' "$GITHUB_WORKSPACE/config/plugins.json")
           if [[ "$ET_ENABLED" == "True" || "$ET_ENABLED" == "true" ]]; then
             ET_URL=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/repos/EasyTier/luci-app-easytier/releases/latest | jq -r '.assets[] | select(.name | contains("aarch64_cortex-a53") and contains("22.03.7") and (contains("SNAPSHOT") | not)).browser_download_url // empty' | head -1)
             if [ -z "$ET_URL" ]; then
@@ -308,6 +330,7 @@ jobs:
         run: |
           cd $SOURCE_DIR
           echo "⚙️ 配置构建选项..."
+          CFG="$GITHUB_WORKSPACE/config/plugins.json"
 
           # 下载基础配置
           curl -fsSL "$CONFIG_URL" -o base.config || {
@@ -321,18 +344,7 @@ jobs:
           echo "CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_cmcc_xr30-nand=y" >> .config
 
           echo "🔧 基于 plugins.json 循环生成 .config..."
-          TRUE_KEYS=$(python3 -c 'import json, os, sys; 
-          try:
-            cfg_path = os.environ.get("CFG")
-            if not cfg_path or not os.path.exists(cfg_path):
-                cfg_path = os.path.join(os.environ.get("GITHUB_WORKSPACE"), "config/plugins.json")
-            with open(cfg_path) as f:
-              data = json.load(f)
-              keys = [k for k, v in data.items() if k.startswith("enable_") and (v is True or str(v).lower() == "true")]
-              print(" ".join(keys))
-          except Exception as e:
-            print(f"JSON Parse Error: {e}", file=sys.stderr); sys.exit(1)
-          ')
+          TRUE_KEYS=$(jq -r 'to_entries | map(select(.key | startswith("enable_")) | select(.value == true or .value == "true") | .key) | join(" ")' "$CFG")
           
           for key in $TRUE_KEYS; do
             name="${key#enable_}"
@@ -393,26 +405,6 @@ jobs:
 
           make defconfig
 
-      - name: 预下载和预构建
-        run: |
-          cd $SOURCE_DIR
-          THREADS=$(nproc)
-          find dl -size -1024c -delete 2>/dev/null || true
-          for i in 1 2 3; do
-            make download -j$THREADS && break || { find dl -size -1024c -delete 2>/dev/null || true; sleep 3; }
-          done
-          [ -d "staging_dir" ] && [ -n "$(ls -A staging_dir 2>/dev/null)" ] && echo "✅ 工具链已缓存" || make toolchain/install -j$THREADS || true
-
-      - name: 打包源码
-        run: |
-          tar --exclude="$SOURCE_DIR/build_dir" --exclude="$SOURCE_DIR/tmp" -czf source.tar.gz $SOURCE_DIR $GITHUB_WORKSPACE/xr30.extra.config $GITHUB_WORKSPACE/feeds.conf.default 2>/dev/null || true
-
-      - name: 缓存插件配置保存
-        uses: actions/cache/save@v4
-        with:
-          path: config/plugins.json
-          key: plugins-config-xr30-${{ github.run_id }}
-
       - name: 上传构建配置 Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -420,62 +412,20 @@ jobs:
           path: config/
           retention-days: 7
 
-      - name: 上传源码
-        uses: actions/upload-artifact@v4
-        with:
-          name: source-xr30-${{ github.run_number }}
-          path: source.tar.gz
-          retention-days: 1
-
-  build:
-    needs: prepare
-    runs-on: ubuntu-22.04
-    steps:
-      - name: 下载构建配置
-        uses: actions/download-artifact@v4
-        with:
-          name: build-configs-xr30
-          path: config
-
-      - name: 下载源码
-        uses: actions/download-artifact@v4
-        with:
-          name: source-xr30-${{ github.run_number }}
-
-      - name: 解压源码
-        run: |
-          tar -xzf source.tar.gz
-
-      - name: 安装编译依赖
-        run: |
-          echo "📦 安装编译依赖 (使用官方初始化脚本)..."
-          curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh | sudo bash
-          export PATH="/usr/lib/ccache:$PATH"
-          echo "PATH=/usr/lib/ccache:$PATH" >> $GITHUB_ENV
-
-      - name: 深度清理磁盘空间
-        run: |
-          docker rmi $(docker images -q) 2>/dev/null || true
-          docker system prune -f 2>/dev/null || true
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /etc/mysql /etc/php \
-            /usr/local/share/boost /usr/share/swift /opt/hostedtoolcache /usr/local/.ghcup \
-            /usr/local/graalvm /imagegeneration /usr/local/share /opt /var/cache/apt/archives/* \
-            /etc/apt/sources.list.d/* 2>/dev/null || true
-          sudo apt-get -y purge azure-cli* docker* ghc* zulu* hhvm* llvm* firefox* \
-            google* dotnet* aspnetcore* powershell* openjdk* adoptopenjdk* mysql* php* \
-            mongodb* moby* snap* 2>/dev/null || true
-          sudo apt-get autoremove --purge -y && sudo apt-get clean && sudo apt-get autoclean
-          sudo rm -rf /tmp/* /var/tmp/* /var/log/* ~/.cache/* 2>/dev/null || true
-
       - name: 编译固件
         run: |
           cd $SOURCE_DIR
           THREADS=$(nproc)
           export PATH="/usr/lib/ccache:$PATH"
           
+          echo "📥 下载构建依赖..."
           find dl -size -1024c -delete 2>/dev/null || true
-          make download -j$THREADS || true
+          make download -j$THREADS V=s || { find dl -size -1024c -delete 2>/dev/null || true; make download -j1 V=s; }
           
+          echo "🔧 预构建工具链..."
+          [ -d "staging_dir" ] && [ -n "$(ls -A staging_dir 2>/dev/null)" ] && echo "✅ 工具链已缓存" || make toolchain/install -j$THREADS || true
+          
+          echo "🔨 开始编译 (${THREADS} 线程)..."
           if make -j$THREADS IGNORE_ERRORS=n; then
             echo "✅ 编译成功"
           else
@@ -501,19 +451,7 @@ jobs:
           echo "" >> release_body.md
           echo "**⚙️ 启用的功能:**" >> release_body.md
           
-          python3 -c 'import json, os
-          try:
-              cfg_path = os.path.join(os.environ.get("GITHUB_WORKSPACE"), "config/plugins.json")
-              if os.path.exists(cfg_path):
-                  with open(cfg_path) as f:
-                      data = json.load(f)
-                      for k, v in data.items():
-                          if k.startswith("enable_") and (v is True or str(v).lower() == "true"):
-                              name = k[7:].replace("_", " ").title()
-                              print(f"- ✅ {name}")
-          except Exception as e:
-              print(f"- ⚠️ 无法解析功能列表: {e}")
-          ' >> release_body.md
+          jq -r 'to_entries | map(select(.key | startswith("enable_")) | select(.value == true or .value == "true") | .key) | .[]' "$GITHUB_WORKSPACE/config/plugins.json" | sed 's/^enable_//;s/_/ /g' | awk '{for(i=1;i<=NF;i++)sub(/./,toupper(substr($0,i,1)),$i)}1' | sed 's/^/- ✅ /' >> release_body.md
           
           cp release_body.md ../artifacts/
 
@@ -532,8 +470,15 @@ jobs:
           path: artifacts.tar.gz
           retention-days: 30
 
+      - name: 缓存插件配置保存
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: config/plugins.json
+          key: plugins-config-xr30-${{ github.run_id }}
+
   release:
-    needs: [prepare, build]
+    needs: build_firmware
     runs-on: ubuntu-22.04
     if: success()
     steps:
@@ -565,19 +510,7 @@ jobs:
           echo "" >> artifacts/release_body.md
           echo "**⚙️ 启用的功能:**" >> artifacts/release_body.md
           
-          python3 -c 'import json, os
-          try:
-              cfg_path = os.path.join(os.environ.get("GITHUB_WORKSPACE"), "config/plugins.json")
-              if os.path.exists(cfg_path):
-                  with open(cfg_path) as f:
-                      data = json.load(f)
-                      for k, v in data.items():
-                          if k.startswith("enable_") and (v is True or str(v).lower() == "true"):
-                              name = k[7:].replace("_", " ").title()
-                              print(f"- ✅ {name}")
-          except Exception as e:
-              print(f"- ⚠️ 无法解析功能列表: {e}")
-          ' >> artifacts/release_body.md
+          jq -r 'to_entries | map(select(.key | startswith("enable_")) | select(.value == true or .value == "true") | .key) | .[]' "$GITHUB_WORKSPACE/config/plugins.json" | sed 's/^enable_//;s/_/ /g' | awk '{for(i=1;i<=NF;i++)sub(/./,toupper(substr($0,i,1)),$i)}1' | sed 's/^/- ✅ /' >> artifacts/release_body.md
           
           cat > artifacts/MANIFEST.txt << EOF
           ╔════════════════════════════════════════════════╗
