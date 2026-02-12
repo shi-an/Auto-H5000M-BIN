@@ -315,6 +315,11 @@ jobs:
           }
           cat base.config > .config
 
+          # 显式添加 CMCC XR30 (cmcc_xr30-nand) 设备支持
+          echo "CONFIG_TARGET_mediatek=y" >> .config
+          echo "CONFIG_TARGET_mediatek_filogic=y" >> .config
+          echo "CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_cmcc_xr30-nand=y" >> .config
+
           echo "🔧 基于 plugins.json 循环生成 .config..."
           TRUE_KEYS=$(python3 -c 'import json, os, sys; 
           try:
