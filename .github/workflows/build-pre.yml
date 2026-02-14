@@ -3,8 +3,8 @@ name: Build ImmortalWrt XR30
 on:
   workflow_dispatch:
     inputs:
-      enable_openclash:
-        description: '启用 OpenClash'
+      enable_daed:
+        description: '启用 daed'
         required: false
         default: true
         type: boolean
@@ -121,7 +121,7 @@ jobs:
           mkdir -p config
           
           echo "🧭 手动触发，优先使用 UI 传入的 inputs"
-          ENABLE_OPENCLASH="${{ github.event.inputs.enable_openclash || 'false' }}"
+          ENABLE_DAED="${{ github.event.inputs.enable_daed || 'false' }}"
           ENABLE_NETSPEEDTEST="${{ github.event.inputs.enable_netspeedtest || 'false' }}"
           ENABLE_EASYTIER="${{ github.event.inputs.enable_easytier || 'false' }}"
           ENABLE_LUCKY="${{ github.event.inputs.enable_lucky || 'false' }}"
@@ -129,7 +129,7 @@ jobs:
           ENABLE_UPNP="${{ github.event.inputs.enable_upnp || 'false' }}"
           
           # 确保所有变量都有值（默认为 false）
-          : ${ENABLE_OPENCLASH:=false}
+          : ${ENABLE_DAED:=false}
           : ${ENABLE_NETSPEEDTEST:=false}
           : ${ENABLE_EASYTIER:=false}
           : ${ENABLE_LUCKY:=false}
@@ -137,7 +137,7 @@ jobs:
           : ${ENABLE_UPNP:=false}
           
           # 输出配置到 GITHUB_OUTPUT
-          echo "enable_openclash=$ENABLE_OPENCLASH" >> $GITHUB_OUTPUT
+          echo "enable_daed=$ENABLE_DAED" >> $GITHUB_OUTPUT
           echo "enable_netspeedtest=$ENABLE_NETSPEEDTEST" >> $GITHUB_OUTPUT
           echo "enable_easytier=$ENABLE_EASYTIER" >> $GITHUB_OUTPUT
           echo "enable_lucky=$ENABLE_LUCKY" >> $GITHUB_OUTPUT
@@ -146,7 +146,7 @@ jobs:
           
           # 显示最终配置
           echo "📋 最终使用的配置 (XR30):"
-          echo "• OpenClash: $ENABLE_OPENCLASH"
+          echo "• Daed: $ENABLE_DAED"
           echo "• NetSpeedTest: $ENABLE_NETSPEEDTEST"
           echo "• EasyTier: $ENABLE_EASYTIER"
           echo "• Lucky: $ENABLE_LUCKY"
@@ -159,7 +159,7 @@ jobs:
           echo "🧾 生成标准 plugins.json (SSOT)"
           CURRENT_JSON=$(cat << 'EOF'
           {
-            "enable_openclash": "${{ steps.set-env.outputs.enable_openclash }}",
+            "enable_daed": "${{ steps.set-env.outputs.enable_daed }}",
             "enable_netspeedtest": "${{ steps.set-env.outputs.enable_netspeedtest }}",
             "enable_easytier": "${{ steps.set-env.outputs.enable_easytier }}",
             "enable_lucky": "${{ steps.set-env.outputs.enable_lucky }}",
@@ -249,6 +249,13 @@ jobs:
             git clone https://github.com/gdy666/luci-app-lucky.git -b main package/luci-app-lucky
           fi
 
+          DAED_ENABLED=$(jq -r '.enable_daed // false' "$GITHUB_WORKSPACE/config/plugins.json")
+          if [[ "$DAED_ENABLED" == "True" || "$DAED_ENABLED" == "true" ]] && [ ! -d "package/dae" ]; then
+            git clone https://github.com/QiuSimons/luci-app-daed.git package/dae
+            # 安装 pnpm (编译前端界面需要)
+            sudo npm install -g pnpm
+          fi
+
       - name: 下载 Release 软件包并准备自动安装
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -310,16 +317,13 @@ jobs:
 
           [ -f "package/mtk/drivers/mt_hwifi/Makefile" ] && sed -i 's/+kmod-mt_wifi_osal//g' "package/mtk/drivers/mt_hwifi/Makefile" || true
 
-          # OpenClash Kernel
-          if [ "$(jq -r '.enable_openclash // false' "$GITHUB_WORKSPACE/config/plugins.json")" = "true" ]; then
-            mkdir -p feeds/luci/applications/luci-app-openclash/root/etc/openclash/core
-            core_path="feeds/luci/applications/luci-app-openclash/root/etc/openclash/core"
-            goe_path="feeds/luci/applications/luci-app-openclash/root/etc/openclash"
-            wget -qO- https://raw.githubusercontent.com/vernesong/OpenClash/core/master/meta/clash-linux-arm64.tar.gz | tar xOvz > $core_path/clash_meta
-            wget -qO- https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat > $goe_path/GeoIP.dat
-            wget -qO- https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat > $goe_path/GeoSite.dat
-            chmod +x $core_path/clash_meta
-          fi
+          echo "🔧 处理 .cargo_checksum.json 以忽略文件校验..."
+          find . -name ".cargo_checksum.json" -exec sed -i 's/"files":{[^}]*}/"files":{}/g' {} \;
+          
+          echo "🧹 清理可能损坏的 Rust 缓存..."
+          rm -rf dl/rust_crates_cache 2>/dev/null || true
+          rm -rf ~/.cargo/registry 2>/dev/null || true
+          rm -rf ~/.cargo/git 2>/dev/null || true
 
       - name: 修改默认LAN IP地址
         run: |
@@ -371,8 +375,31 @@ jobs:
                 echo "CONFIG_PACKAGE_libpthread=y" >> .config
                 echo "CONFIG_PACKAGE_librt=y" >> .config
                 ;;
-              openclash)
-                echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
+              daed)
+                echo "CONFIG_PACKAGE_luci-app-daed=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-daed-zh-cn=y" >> .config
+                echo "CONFIG_DEVEL=y" >> .config
+                echo "CONFIG_KERNEL_DEBUG_INFO=y" >> .config
+                echo "CONFIG_KERNEL_DEBUG_INFO_REDUCED=n" >> .config
+                echo "CONFIG_KERNEL_DEBUG_INFO_BTF=y" >> .config
+                echo "CONFIG_KERNEL_CGROUPS=y" >> .config
+                echo "CONFIG_KERNEL_CGROUP_BPF=y" >> .config
+                echo "CONFIG_KERNEL_BPF_EVENTS=y" >> .config
+                echo "CONFIG_BPF_TOOLCHAIN_HOST=y" >> .config
+                echo "CONFIG_KERNEL_XDP_SOCKETS=y" >> .config
+                echo "CONFIG_PACKAGE_kmod-xdp-sockets-diag=y" >> .config
+                echo "CONFIG_PACKAGE_kmod-sched-bpf=y" >> .config
+                echo "CONFIG_KERNEL_BPF=y" >> .config
+                echo "CONFIG_KERNEL_BPF_SYSCALL=y" >> .config
+                echo "CONFIG_KERNEL_BPF_JIT=y" >> .config
+                echo "CONFIG_KERNEL_KPROBES=y" >> .config
+                echo "CONFIG_KERNEL_NET_INGRESS=y" >> .config
+                echo "CONFIG_KERNEL_NET_EGRESS=y" >> .config
+                echo "CONFIG_KERNEL_NET_SCH_INGRESS=m" >> .config
+                echo "CONFIG_KERNEL_NET_CLS_BPF=m" >> .config
+                echo "CONFIG_KERNEL_NET_CLS_ACT=y" >> .config
+                echo "CONFIG_KERNEL_BPF_STREAM_PARSER=y" >> .config
+                echo "CONFIG_KERNEL_KPROBE_EVENTS=y" >> .config
                 ;;
               netspeedtest)
                 echo "CONFIG_PACKAGE_luci-app-netspeedtest=y" >> .config
