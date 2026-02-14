@@ -1011,6 +1011,13 @@ jobs:
           
           echo "🔧 预构建工具链..."
           [ -d "staging_dir" ] && [ -n "$(ls -A staging_dir 2>/dev/null)" ] && echo "✅ 工具链已缓存" || make toolchain/install -j$THREADS || true
+          
+          echo "🧹 强制清理 Rust 旧缓存..."
+          rm -rf build_dir/target-*/host/rustc* 2>/dev/null || true
+          find dl -name "rustc-1.90.0-src*" -delete 2>/dev/null || true
+          
+          echo "📦 编译 Rust (单线程)..."
+          make package/feeds/packages/rust/host/compile -j1 V=s || true
 
           if make -j$THREADS IGNORE_ERRORS=n; then
             END_TIME=$(date +%s)
