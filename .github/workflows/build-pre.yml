@@ -6,6 +6,11 @@ on:
       enable_daed:
         description: '启用 daed'
         required: false
+        default: false
+        type: boolean
+      enable_nikki:
+        description: '启用 Nikki'
+        required: false
         default: true
         type: boolean
       enable_netspeedtest:
@@ -122,6 +127,7 @@ jobs:
           
           echo "🧭 手动触发，优先使用 UI 传入的 inputs"
           ENABLE_DAED="${{ github.event.inputs.enable_daed || 'false' }}"
+          ENABLE_NIKKI="${{ github.event.inputs.enable_nikki || 'false' }}"
           ENABLE_NETSPEEDTEST="${{ github.event.inputs.enable_netspeedtest || 'false' }}"
           ENABLE_EASYTIER="${{ github.event.inputs.enable_easytier || 'false' }}"
           ENABLE_LUCKY="${{ github.event.inputs.enable_lucky || 'false' }}"
@@ -130,6 +136,7 @@ jobs:
           
           # 确保所有变量都有值（默认为 false）
           : ${ENABLE_DAED:=false}
+          : ${ENABLE_NIKKI:=false}
           : ${ENABLE_NETSPEEDTEST:=false}
           : ${ENABLE_EASYTIER:=false}
           : ${ENABLE_LUCKY:=false}
@@ -138,6 +145,7 @@ jobs:
           
           # 输出配置到 GITHUB_OUTPUT
           echo "enable_daed=$ENABLE_DAED" >> $GITHUB_OUTPUT
+          echo "enable_nikki=$ENABLE_NIKKI" >> $GITHUB_OUTPUT
           echo "enable_netspeedtest=$ENABLE_NETSPEEDTEST" >> $GITHUB_OUTPUT
           echo "enable_easytier=$ENABLE_EASYTIER" >> $GITHUB_OUTPUT
           echo "enable_lucky=$ENABLE_LUCKY" >> $GITHUB_OUTPUT
@@ -147,6 +155,7 @@ jobs:
           # 显示最终配置
           echo "📋 最终使用的配置 (XR30):"
           echo "• Daed: $ENABLE_DAED"
+          echo "• Nikki: $ENABLE_NIKKI"
           echo "• NetSpeedTest: $ENABLE_NETSPEEDTEST"
           echo "• EasyTier: $ENABLE_EASYTIER"
           echo "• Lucky: $ENABLE_LUCKY"
@@ -160,6 +169,7 @@ jobs:
           CURRENT_JSON=$(cat << 'EOF'
           {
             "enable_daed": "${{ steps.set-env.outputs.enable_daed }}",
+            "enable_nikki": "${{ steps.set-env.outputs.enable_nikki }}",
             "enable_netspeedtest": "${{ steps.set-env.outputs.enable_netspeedtest }}",
             "enable_easytier": "${{ steps.set-env.outputs.enable_easytier }}",
             "enable_lucky": "${{ steps.set-env.outputs.enable_lucky }}",
@@ -221,12 +231,24 @@ jobs:
           if [ -f "$GITHUB_WORKSPACE/feeds.conf.default" ]; then
             cp "$GITHUB_WORKSPACE/feeds.conf.default" ./feeds.conf.default
           fi
+          
+          # 动态管理 feeds.conf.default
+          # 使用 jq 解析
+          NIKKI_ENABLED=$(jq -r '.enable_nikki // false' "$GITHUB_WORKSPACE/config/plugins.json")
+          if [ "$NIKKI_ENABLED" != "True" ] && [ "$NIKKI_ENABLED" != "true" ]; then
+            echo "🔧 禁用 nikki feed..."
+            sed -i '/src-git nikki/d' feeds.conf.default
+            sed -i '/nikki/d' feeds.conf.default
+          fi
 
           echo "📋 当前 feeds.conf.default 内容:"
           cat feeds.conf.default
 
           echo "🧹 清理 feeds 缓存..."
           rm -rf tmp/.config* tmp/.packageinfo tmp/.targetinfo tmp/info tmp/.feeds* 2>/dev/null || true
+          
+          # 清理禁用的 feeds
+          [ "$NIKKI_ENABLED" != "true" ] && rm -rf feeds/nikki* package/feeds/nikki 2>/dev/null || true
           
           echo "🔄 更新 feeds..."
           ./scripts/feeds update -a -j $(nproc) || true
@@ -400,6 +422,20 @@ jobs:
                 echo "CONFIG_KERNEL_NET_CLS_ACT=y" >> .config
                 echo "CONFIG_KERNEL_BPF_STREAM_PARSER=y" >> .config
                 echo "CONFIG_KERNEL_KPROBE_EVENTS=y" >> .config
+                ;;
+              nikki)
+                echo "CONFIG_PACKAGE_nikki=y" >> .config
+                echo "CONFIG_PACKAGE_luci-app-nikki=y" >> .config
+                echo "CONFIG_PACKAGE_luci-i18n-nikki-zh-cn=y" >> .config
+                echo "CONFIG_PACKAGE_ca-bundle=y" >> .config
+                echo "CONFIG_PACKAGE_curl=y" >> .config
+                echo "CONFIG_PACKAGE_yq=y" >> .config
+                echo "CONFIG_PACKAGE_firewall4=y" >> .config
+                echo "CONFIG_PACKAGE_ip-full=y" >> .config
+                echo "CONFIG_PACKAGE_kmod-inet-diag=y" >> .config
+                echo "CONFIG_PACKAGE_kmod-nft-socket=y" >> .config
+                echo "CONFIG_PACKAGE_kmod-nft-tproxy=y" >> .config
+                echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
                 ;;
               netspeedtest)
                 echo "CONFIG_PACKAGE_luci-app-netspeedtest=y" >> .config
