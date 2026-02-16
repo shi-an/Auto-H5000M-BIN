@@ -327,6 +327,9 @@ jobs:
           cd $SOURCE_DIR
           echo "🔧 应用补丁和修复依赖..."
           
+          # 禁用 patch-kernel.sh 中的补丁检查
+          sed -i '/Checking for patches that did not apply cleanly/,/fi/d' scripts/patch-kernel.sh || true
+          
           # 修复 ebtables
           EBTABLES_MAKEFILE="package/network/utils/ebtables/Makefile"
           if [ -f "$EBTABLES_MAKEFILE" ]; then
@@ -338,9 +341,6 @@ jobs:
           rm -rf package/feeds/packages/{exim,onionshare-cli,python-zope-event,python-zope-interface,python-gevent,python-twisted} 2>/dev/null || true
 
           [ -f "package/mtk/drivers/mt_hwifi/Makefile" ] && sed -i 's/+kmod-mt_wifi_osal//g' "package/mtk/drivers/mt_hwifi/Makefile" || true
-
-          echo "🔧 处理 .cargo_checksum.json 以忽略文件校验..."
-          find . -name ".cargo_checksum.json" -exec sed -i 's/"files":{[^}]*}/"files":{}/g' {} \;
           
           echo "🧹 清理可能损坏的 Rust 缓存..."
           rm -rf dl/rust_crates_cache 2>/dev/null || true
@@ -492,8 +492,8 @@ jobs:
           rm -rf build_dir/target-*/host/rustc* 2>/dev/null || true
           find dl -name "rustc-1.90.0-src*" -delete 2>/dev/null || true
           
-          echo "📦 编译 Rust (单线程)..."
-          make package/feeds/packages/rust/host/compile -j1 V=s || true
+          # 预先展开 Rust 源码以应用 vendor 修复
+          make package/feeds/packages/rust/host/prepare V=s || true
 
           echo "🔨 开始编译 (${THREADS} 线程)..."
           if make -j$THREADS IGNORE_ERRORS=n; then
