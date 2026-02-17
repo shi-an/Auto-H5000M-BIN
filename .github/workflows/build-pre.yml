@@ -333,16 +333,25 @@ jobs:
           # 禁用 reject 检查
           sed -i 's/exit 1/echo "Continuing despite rejects"/' scripts/patch-kernel.sh || true
           
-          # ⭐ 修复 Rust/Cargo 与 ccache 的空间解析冲突
-          echo "🔧 修复 Rust 链接器 ccache 冲突..."
+          # ⭐ 修复 Rust/Cargo 链接器被单引号包裹导致找不到文件的问题
+          echo "🔧 修复 Rust 链接器引号与 ccache 冲突..."
+          
           # 1. 修复全局的 cargo.mk 模板
           if [ -f "feeds/packages/lang/rust/cargo.mk" ]; then
+            # 替换为无 ccache 的纯净编译器
             sed -i 's/TARGET_CC/TARGET_CC_NOCACHE/g' feeds/packages/lang/rust/cargo.mk || true
+            # 【关键】剥离单引号：将 linker='xxx' 改为 linker=xxx
+            sed -i "s/linker='\\([^']*\\)'/linker=\\1/g" feeds/packages/lang/rust/cargo.mk || true
           fi
-          # 2. 直接针对 at-webserver 的 Makefile 进行硬替换（双重保险）
-          if [ -f "package/luci-app-at-webserver/at-webserver/Makefile" ]; then
-            sed -i 's/TARGET_CC/TARGET_CC_NOCACHE/g' package/luci-app-at-webserver/at-webserver/Makefile || true
-            sed -i 's/TARGET_CXX/TARGET_CXX_NOCACHE/g' package/luci-app-at-webserver/at-webserver/Makefile || true
+          
+          # 2. 针对 at-webserver 的 Makefile 进行同样的修复
+          if [ -d "package/luci-app-at-webserver" ]; then
+            find package/luci-app-at-webserver -type f -name Makefile -exec sed -i 's/TARGET_CC/TARGET_CC_NOCACHE/g' {} + || true
+            find package/luci-app-at-webserver -type f -name Makefile -exec sed -i 's/TARGET_CXX/TARGET_CXX_NOCACHE/g' {} + || true
+            # 【关键】剥离动态变量的单引号
+            find package/luci-app-at-webserver -type f -name Makefile -exec sed -i "s/linker='\\([^']*\\)'/linker=\\1/g" {} + || true
+            # 【关键】剥离直接写死的单引号 (如果有的话)
+            find package/luci-app-at-webserver -type f -name Makefile -exec sed -i "s/'aarch64-openwrt-linux-musl-gcc'/aarch64-openwrt-linux-musl-gcc/g" {} + || true
           fi
           
           # 修复 ebtables
