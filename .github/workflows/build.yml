@@ -683,6 +683,18 @@ jobs:
           # 禁用 reject 检查
           sed -i 's/exit 1/echo "Continuing despite rejects"/' scripts/patch-kernel.sh || true
           
+          # ⭐ 修复 Rust/Cargo 与 ccache 的空间解析冲突
+          echo "🔧 修复 Rust 链接器 ccache 冲突..."
+          # 1. 修复全局的 cargo.mk 模板
+          if [ -f "feeds/packages/lang/rust/cargo.mk" ]; then
+            sed -i 's/TARGET_CC/TARGET_CC_NOCACHE/g' feeds/packages/lang/rust/cargo.mk || true
+          fi
+          # 2. 直接针对 at-webserver 的 Makefile 进行硬替换（双重保险）
+          if [ -f "package/luci-app-at-webserver/at-webserver/Makefile" ]; then
+            sed -i 's/TARGET_CC/TARGET_CC_NOCACHE/g' package/luci-app-at-webserver/at-webserver/Makefile || true
+            sed -i 's/TARGET_CXX/TARGET_CXX_NOCACHE/g' package/luci-app-at-webserver/at-webserver/Makefile || true
+          fi
+          
           # ⭐ 修复 ebtables 下载问题
           EBTABLES_MAKEFILE="package/network/utils/ebtables/Makefile"
           if [ -f "$EBTABLES_MAKEFILE" ]; then
